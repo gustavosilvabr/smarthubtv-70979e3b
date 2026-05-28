@@ -74,7 +74,7 @@ export function VideoPlayer({ item, onClose }: Props) {
       });
       player.attachMediaElement(video);
       player.load();
-      player.play().catch((e) => console.error("[mpegts] play", e));
+      Promise.resolve(player.play()).catch((e: unknown) => console.error("[mpegts] play", e));
     } else {
       video.src = src;
       video.play().catch(() => {});
