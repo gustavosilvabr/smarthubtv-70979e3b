@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
-import { X } from "lucide-react";
+import { PictureInPicture2, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 
 interface Props {
