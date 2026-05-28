@@ -31,6 +31,8 @@ export function VideoPlayer({ item, onClose }: Props) {
     const video = videoRef.current;
     const src = proxied(item.url);
     const isHls = /\.m3u8(\?|$)/i.test(item.url) || item.url.includes("m3u8");
+    const isLive = item.type === "live";
+    const isTs = /\.ts(\?|$)/i.test(item.url) || isLive;
 
     // teardown previous
     if (hlsRef.current) {
@@ -53,20 +55,26 @@ export function VideoPlayer({ item, onClose }: Props) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
-    } else if (/\.ts(\?|$)/i.test(item.url) && mpegts.isSupported()) {
+    } else if (isTs && mpegts.isSupported()) {
       const player = mpegts.createPlayer(
-        { type: "mpegts", isLive: item.type === "live", url: src },
+        { type: "mpegts", isLive, url: src, cors: true },
         {
-          enableWorker: true,
-          enableStashBuffer: item.type !== "live",
-          isLive: item.type === "live",
-          liveBufferLatencyChasing: item.type === "live",
+          enableWorker: false,
+          enableStashBuffer: !isLive,
+          stashInitialSize: 128,
+          isLive,
+          liveBufferLatencyChasing: isLive,
+          lazyLoad: false,
+          autoCleanupSourceBuffer: isLive,
         },
       );
       mpegtsRef.current = player;
+      player.on(mpegts.Events.ERROR, (type, detail, info) => {
+        console.error("[mpegts] error", type, detail, info);
+      });
       player.attachMediaElement(video);
       player.load();
-      player.play();
+      Promise.resolve(player.play()).catch((e: unknown) => console.error("[mpegts] play", e));
     } else {
       video.src = src;
       video.play().catch(() => {});
