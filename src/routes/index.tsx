@@ -172,6 +172,17 @@ function Dashboard() {
                 <div className="py-20 text-center text-muted-foreground">
                   Nenhum conteúdo encontrado.
                 </div>
+              ) : tab === "series" ? (
+                seriesGroups.map((g) => (
+                  <SeriesSection
+                    key={g.group}
+                    title={g.group}
+                    shows={g.shows}
+                    favorites={favorites}
+                    onOpen={setOpenShow}
+                    onToggleFavorite={toggleFav}
+                  />
+                ))
               ) : (
                 groups.map((g) => (
                   <CategorySection
@@ -189,7 +200,18 @@ function Dashboard() {
         </main>
       </div>
 
+      <SeriesModal
+        show={openShow}
+        onClose={() => setOpenShow(null)}
+        onPlay={(it) => {
+          setOpenShow(null);
+          setPlaying(it);
+        }}
+      />
       <VideoPlayer item={playing} onClose={() => setPlaying(null)} />
+    </div>
+  );
+}
     </div>
   );
 }
