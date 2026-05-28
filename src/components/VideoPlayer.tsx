@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
+import mpegts from "mpegts.js";
 import { X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 
@@ -19,6 +20,7 @@ function proxied(url: string) {
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const mpegtsRef = useRef<mpegts.Player | null>(null);
 
   useEffect(() => {
     if (!item || !videoRef.current) return;
@@ -30,6 +32,10 @@ export function VideoPlayer({ item, onClose }: Props) {
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
+    }
+    if (mpegtsRef.current) {
+      mpegtsRef.current.destroy();
+      mpegtsRef.current = null;
     }
     video.pause();
     video.removeAttribute("src");
@@ -43,6 +49,20 @@ export function VideoPlayer({ item, onClose }: Props) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
+    } else if (/\.ts(\?|$)/i.test(item.url) && mpegts.isSupported()) {
+      const player = mpegts.createPlayer(
+        { type: "mpegts", isLive: item.type === "live", url: src },
+        {
+          enableWorker: true,
+          enableStashBuffer: item.type !== "live",
+          isLive: item.type === "live",
+          liveBufferLatencyChasing: item.type === "live",
+        }
+      );
+      mpegtsRef.current = player;
+      player.attachMediaElement(video);
+      player.load();
+      player.play();
     } else {
       video.src = src;
       video.play().catch(() => {});
@@ -52,6 +72,10 @@ export function VideoPlayer({ item, onClose }: Props) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
+      }
+      if (mpegtsRef.current) {
+        mpegtsRef.current.destroy();
+        mpegtsRef.current = null;
       }
       video.pause();
       video.removeAttribute("src");
