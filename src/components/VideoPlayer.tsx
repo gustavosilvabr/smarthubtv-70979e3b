@@ -104,13 +104,36 @@ export function VideoPlayer({ item, onClose }: Props) {
           <h2 className="text-lg md:text-xl font-semibold text-foreground line-clamp-1">
             {item.name}
           </h2>
-          <button
-            onClick={onClose}
-            className="rounded-full bg-secondary p-2 hover:bg-accent transition"
-            aria-label="Fechar"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                const v = videoRef.current;
+                if (!v) return;
+                try {
+                  const doc = document as Document & { pictureInPictureElement?: Element | null };
+                  if (doc.pictureInPictureElement) {
+                    await document.exitPictureInPicture();
+                  } else if (typeof v.requestPictureInPicture === "function") {
+                    await v.requestPictureInPicture();
+                  }
+                } catch (e) {
+                  console.error("[pip]", e);
+                }
+              }}
+              className="rounded-full bg-secondary p-2 hover:bg-accent transition"
+              aria-label="Picture in Picture"
+              title="Picture in Picture"
+            >
+              <PictureInPicture2 className="h-5 w-5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-full bg-secondary p-2 hover:bg-accent transition"
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
         <div className="aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
           <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
