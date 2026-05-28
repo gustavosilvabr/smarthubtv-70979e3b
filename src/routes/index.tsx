@@ -102,6 +102,11 @@ function Dashboard() {
       .map(([group, items]) => ({ group, items }));
   }, [filtered]);
 
+  const seriesGroups = useMemo(() => {
+    if (tab !== "series") return [];
+    return groups.map((g) => ({ group: g.group, shows: groupSeries(g.items) }));
+  }, [groups, tab]);
+
   const counts: Record<Tab, number> = useMemo(
     () => ({
       live: items.filter((i) => i.type === "live").length,
