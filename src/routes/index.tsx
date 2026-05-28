@@ -31,6 +31,7 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [playing, setPlaying] = useState<M3UItem | null>(null);
+  const [openShow, setOpenShow] = useState<SeriesShow | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
