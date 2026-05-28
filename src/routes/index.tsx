@@ -212,6 +212,3 @@ function Dashboard() {
     </div>
   );
 }
-    </div>
-  );
-}
