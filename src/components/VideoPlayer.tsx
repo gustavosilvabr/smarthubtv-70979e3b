@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Hls from "hls.js";
+import mpegts from "mpegts.js";
 import { X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 
@@ -10,7 +11,11 @@ interface Props {
 
 function proxied(url: string) {
   // If page is https and url is http, proxy it. Also helps with CORS for HLS.
-  if (typeof window !== "undefined" && window.location.protocol === "https:" && url.startsWith("http:")) {
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:" &&
+    url.startsWith("http:")
+  ) {
     return `/api/stream?u=${encodeURIComponent(url)}`;
   }
   return url;
@@ -19,6 +24,7 @@ function proxied(url: string) {
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const mpegtsRef = useRef<mpegts.Player | null>(null);
 
   useEffect(() => {
     if (!item || !videoRef.current) return;
@@ -30,6 +36,10 @@ export function VideoPlayer({ item, onClose }: Props) {
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
+    }
+    if (mpegtsRef.current) {
+      mpegtsRef.current.destroy();
+      mpegtsRef.current = null;
     }
     video.pause();
     video.removeAttribute("src");
@@ -43,6 +53,20 @@ export function VideoPlayer({ item, onClose }: Props) {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {});
       });
+    } else if (/\.ts(\?|$)/i.test(item.url) && mpegts.isSupported()) {
+      const player = mpegts.createPlayer(
+        { type: "mpegts", isLive: item.type === "live", url: src },
+        {
+          enableWorker: true,
+          enableStashBuffer: item.type !== "live",
+          isLive: item.type === "live",
+          liveBufferLatencyChasing: item.type === "live",
+        },
+      );
+      mpegtsRef.current = player;
+      player.attachMediaElement(video);
+      player.load();
+      player.play();
     } else {
       video.src = src;
       video.play().catch(() => {});
@@ -52,6 +76,10 @@ export function VideoPlayer({ item, onClose }: Props) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
         hlsRef.current = null;
+      }
+      if (mpegtsRef.current) {
+        mpegtsRef.current.destroy();
+        mpegtsRef.current = null;
       }
       video.pause();
       video.removeAttribute("src");
@@ -65,7 +93,9 @@ export function VideoPlayer({ item, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in">
       <div className="relative w-full max-w-6xl">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg md:text-xl font-semibold text-foreground line-clamp-1">{item.name}</h2>
+          <h2 className="text-lg md:text-xl font-semibold text-foreground line-clamp-1">
+            {item.name}
+          </h2>
           <button
             onClick={onClose}
             className="rounded-full bg-secondary p-2 hover:bg-accent transition"
@@ -75,13 +105,7 @@ export function VideoPlayer({ item, onClose }: Props) {
           </button>
         </div>
         <div className="aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
-          <video
-            ref={videoRef}
-            controls
-            autoPlay
-            playsInline
-            className="h-full w-full"
-          />
+          <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{item.group}</p>
       </div>
