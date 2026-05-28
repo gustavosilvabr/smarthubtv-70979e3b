@@ -4,8 +4,11 @@ import { Loader2, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Sidebar, type Tab } from "@/components/Sidebar";
 import { CategorySection } from "@/components/CategorySection";
+import { SeriesSection } from "@/components/SeriesSection";
+import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { parseM3U } from "@/utils/parseM3U";
+import { groupSeries, type SeriesShow } from "@/utils/parseEpisode";
 import type { M3UItem } from "@/types/iptv";
 
 export const Route = createFileRoute("/")({
@@ -28,6 +31,7 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [playing, setPlaying] = useState<M3UItem | null>(null);
+  const [openShow, setOpenShow] = useState<SeriesShow | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -98,6 +102,11 @@ function Dashboard() {
       .map(([group, items]) => ({ group, items }));
   }, [filtered]);
 
+  const seriesGroups = useMemo(() => {
+    if (tab !== "series") return [];
+    return groups.map((g) => ({ group: g.group, shows: groupSeries(g.items) }));
+  }, [groups, tab]);
+
   const counts: Record<Tab, number> = useMemo(
     () => ({
       live: items.filter((i) => i.type === "live").length,
@@ -163,6 +172,17 @@ function Dashboard() {
                 <div className="py-20 text-center text-muted-foreground">
                   Nenhum conteúdo encontrado.
                 </div>
+              ) : tab === "series" ? (
+                seriesGroups.map((g) => (
+                  <SeriesSection
+                    key={g.group}
+                    title={g.group}
+                    shows={g.shows}
+                    favorites={favorites}
+                    onOpen={setOpenShow}
+                    onToggleFavorite={toggleFav}
+                  />
+                ))
               ) : (
                 groups.map((g) => (
                   <CategorySection
@@ -180,6 +200,14 @@ function Dashboard() {
         </main>
       </div>
 
+      <SeriesModal
+        show={openShow}
+        onClose={() => setOpenShow(null)}
+        onPlay={(it) => {
+          setOpenShow(null);
+          setPlaying(it);
+        }}
+      />
       <VideoPlayer item={playing} onClose={() => setPlaying(null)} />
     </div>
   );
