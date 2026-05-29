@@ -43,7 +43,7 @@ export const Route = createFileRoute("/api/m3u")({
           ]);
 
           const liveM3u = buildLiveM3U(categories, streams);
-          const body = `${liveM3u}\n${stripHeader(m3uText)}`;
+          const body = `${liveM3u}\n${keepOnlyVodAndSeries(m3uText)}`;
 
           return new Response(body, {
             status: 200,
@@ -98,6 +98,35 @@ function buildLiveM3U(categories: LiveCategory[], streams: LiveStream[]) {
 
 function stripHeader(text: string) {
   return text.replace(/^#EXTM3U[^\n]*(\r?\n)?/i, "").trimStart();
+}
+
+function keepOnlyVodAndSeries(text: string) {
+  const lines = stripHeader(text).split(/\r?\n/);
+  const kept: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.startsWith("#EXTINF")) continue;
+
+    const entry = [line];
+    let url = "";
+    let j = i + 1;
+    while (j < lines.length) {
+      const next = lines[j].trim();
+      if (next && !next.startsWith("#")) {
+        url = next;
+        entry.push(lines[j]);
+        break;
+      }
+      if (next) entry.push(lines[j]);
+      j++;
+    }
+
+    if (url && !/\/live\//i.test(url)) kept.push(...entry);
+    i = j;
+  }
+
+  return kept.join("\n");
 }
 
 function escapeAttr(value: string) {
