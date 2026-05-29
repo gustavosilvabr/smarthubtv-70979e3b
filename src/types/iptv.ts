@@ -6,7 +6,9 @@ export interface M3UItem {
   logo: string;
   group: string;
   url: string;
+  fallbackUrl?: string;
   type: ContentType;
+  streamId?: string | number;
 }
 
 export interface GroupedContent {

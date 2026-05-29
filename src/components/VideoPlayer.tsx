@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
-import { PictureInPicture2, X } from "lucide-react";
+import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 
 interface Props {
@@ -21,20 +21,26 @@ function proxied(url: string) {
   return url;
 }
 
+const LOAD_TIMEOUT_MS = 20_000;
+
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const mpegtsRef = useRef<mpegts.Player | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackAttemptedRef = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => {
-    if (!item || !videoRef.current) return;
-    const video = videoRef.current;
-    const src = proxied(item.url);
-    const isHls = /\.m3u8(\?|$)/i.test(item.url) || item.url.includes("m3u8");
-    const isLive = item.type === "live";
-    const isTs = /\.ts(\?|$)/i.test(item.url) || isLive;
+  const clearLoadTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
 
-    // teardown previous
+  const destroyPlayers = useCallback(() => {
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -43,57 +49,177 @@ export function VideoPlayer({ item, onClose }: Props) {
       mpegtsRef.current.destroy();
       mpegtsRef.current = null;
     }
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
+  }, []);
 
-    if (isHls && Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-    } else if (isTs && mpegts.isSupported()) {
-      const player = mpegts.createPlayer(
-        { type: "mpegts", isLive, url: src, cors: true },
-        {
-          enableWorker: false,
-          enableStashBuffer: !isLive,
-          stashInitialSize: 128,
-          isLive,
-          liveBufferLatencyChasing: isLive,
-          lazyLoad: false,
-          autoCleanupSourceBuffer: isLive,
-        },
-      );
-      mpegtsRef.current = player;
-      player.on(mpegts.Events.ERROR, (type, detail, info) => {
-        console.error("[mpegts] error", type, detail, info);
-      });
-      player.attachMediaElement(video);
-      player.load();
-      Promise.resolve(player.play()).catch((e: unknown) => console.error("[mpegts] play", e));
-    } else {
-      video.src = src;
-      video.play().catch(() => {});
-    }
+  useEffect(() => {
+    if (!item || !videoRef.current) return;
 
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      if (mpegtsRef.current) {
-        mpegtsRef.current.destroy();
-        mpegtsRef.current = null;
-      }
+    const video = videoRef.current;
+    const streamUrl = proxied(item.url);
+    const fallbackUrl = item.fallbackUrl ? proxied(item.fallbackUrl) : undefined;
+    const isLive = item.type === "live";
+    let disposed = false;
+
+    const startTimeout = () => {
+      clearLoadTimeout();
+      timeoutRef.current = setTimeout(() => {
+        if (disposed) return;
+        if (fallbackUrl && !fallbackAttemptedRef.current) {
+          console.warn("[live] timeout no HLS, tentando fallback TS", fallbackUrl);
+          playTs(fallbackUrl);
+          return;
+        }
+        setLoading(false);
+        setError(
+          "Não foi possível reproduzir este canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+        );
+      }, LOAD_TIMEOUT_MS);
+    };
+
+    const resetVideo = () => {
+      destroyPlayers();
       video.pause();
       video.removeAttribute("src");
       video.load();
     };
-  }, [item]);
+
+    const markPlaying = () => {
+      clearLoadTimeout();
+      setLoading(false);
+      setError("");
+    };
+
+    const showClickToPlay = () => {
+      clearLoadTimeout();
+      setLoading(false);
+      setError("Clique no play para iniciar o canal.");
+    };
+
+    const playNative = (url: string) => {
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+      video.src = url;
+      video.load();
+      video.play().catch(showClickToPlay);
+    };
+
+    function playTs(url: string) {
+      fallbackAttemptedRef.current = true;
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+
+      if (mpegts.isSupported()) {
+        const player = mpegts.createPlayer(
+          { type: "mpegts", isLive, url, cors: true },
+          {
+            enableWorker: false,
+            enableStashBuffer: !isLive,
+            stashInitialSize: 128,
+            isLive,
+            liveBufferLatencyChasing: isLive,
+            lazyLoad: false,
+            autoCleanupSourceBuffer: isLive,
+          },
+        );
+        mpegtsRef.current = player;
+        player.on(mpegts.Events.ERROR, (type, detail, info) => {
+          console.error("[mpegts] error", type, detail, info);
+          clearLoadTimeout();
+          setLoading(false);
+          setError(
+            "Erro ao carregar o canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+          );
+        });
+        player.attachMediaElement(video);
+        player.load();
+        Promise.resolve(player.play()).catch(showClickToPlay);
+      } else {
+        playNative(url);
+      }
+    }
+
+    const tryFallback = () => {
+      if (fallbackUrl && !fallbackAttemptedRef.current) {
+        console.warn("[live] HLS falhou, tentando fallback TS", fallbackUrl);
+        playTs(fallbackUrl);
+      } else {
+        clearLoadTimeout();
+        setLoading(false);
+        setError(
+          "Erro ao carregar o canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+        );
+      }
+    };
+
+    const playWithHls = (url: string) => {
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        liveSyncDurationCount: 3,
+        manifestLoadingTimeOut: 15000,
+        levelLoadingTimeOut: 15000,
+        fragLoadingTimeOut: 20000,
+      });
+
+      hlsRef.current = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(showClickToPlay);
+      });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        console.error("HLS ERROR:", data);
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hls.startLoad();
+          return;
+        }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+          return;
+        }
+        tryFallback();
+      });
+    };
+
+    setLoading(true);
+    setError("");
+    fallbackAttemptedRef.current = false;
+    video.onplaying = markPlaying;
+    video.onerror = tryFallback;
+
+    if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8")) {
+      if (Hls.isSupported()) playWithHls(streamUrl);
+      else if (video.canPlayType("application/vnd.apple.mpegurl")) playNative(streamUrl);
+      else if (fallbackUrl) playTs(fallbackUrl);
+      else {
+        setLoading(false);
+        setError("Este navegador não suporta HLS.");
+      }
+    } else if (/\.ts(\?|$)/i.test(streamUrl) || isLive) {
+      playTs(streamUrl);
+    } else {
+      playNative(streamUrl);
+    }
+
+    return () => {
+      disposed = true;
+      clearLoadTimeout();
+      destroyPlayers();
+      video.onplaying = null;
+      video.onerror = null;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [item, attempt, clearLoadTimeout, destroyPlayers]);
 
   if (!item) return null;
 
@@ -135,8 +261,30 @@ export function VideoPlayer({ item, onClose }: Props) {
             </button>
           </div>
         </div>
-        <div className="aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
           <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
+          {loading && (
+            <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                Carregando canal...
+              </div>
+            </div>
+          )}
+          {error && (
+            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-6 text-center text-foreground">
+              <div className="max-w-lg">
+                <p className="text-sm md:text-base">{error}</p>
+                <button
+                  onClick={() => setAttempt((n) => n + 1)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{item.group}</p>
       </div>
