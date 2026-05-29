@@ -63,9 +63,9 @@ export const Route = createFileRoute("/api/m3u")({
 async function xtreamFetch(action: "get_live_categories" | "get_live_streams") {
   const url = `${XTREAM_SERVER}/player_api.php?username=${XTREAM_USERNAME}&password=${XTREAM_PASSWORD}&action=${action}`;
   const res = await fetch(url, {
-            headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
-            redirect: "follow",
-          });
+    headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
+    redirect: "follow",
+  });
   if (!res.ok) throw new Error(`Xtream ${action} error: ${res.status}`);
   return res;
 }
