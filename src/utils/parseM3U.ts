@@ -40,14 +40,14 @@ export function parseM3U(text: string): M3UItem[] {
       }
       if (url) {
         out.push({
-            id: streamId || `${idx++}-${name}`,
-            name,
-            logo,
-            group,
-            url,
-            fallbackUrl: fallbackUrl || undefined,
-            type: classifyContent(group, url),
-            streamId: streamId || undefined,
+          id: streamId || `${idx++}-${name}`,
+          name,
+          logo,
+          group,
+          url,
+          fallbackUrl: fallbackUrl || undefined,
+          type: classifyContent(group, url),
+          streamId: streamId || undefined,
         });
       }
       i = j + 1;
