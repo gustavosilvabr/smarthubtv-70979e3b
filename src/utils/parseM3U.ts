@@ -20,18 +20,18 @@ export function parseM3U(text: string): M3UItem[] {
     if (line.startsWith("#EXTINF")) {
       const logo = attr(line, "tvg-logo");
       const group = attr(line, "group-title") || "Outros";
-        const streamId = attr(line, "tvg-id");
+      const streamId = attr(line, "tvg-id");
       const commaIdx = line.lastIndexOf(",");
       const name = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "Sem nome";
-        let fallbackUrl = "";
+      let fallbackUrl = "";
       // find next non-comment line as URL
       let url = "";
       let j = i + 1;
       while (j < lines.length) {
         const l = lines[j].trim();
-          if (l.startsWith("#SMART-HUB:")) {
-            fallbackUrl = decodeAttr(attr(l, "fallback-url"));
-          }
+        if (l.startsWith("#SMART-HUB:")) {
+          fallbackUrl = decodeAttr(attr(l, "fallback-url"));
+        }
         if (l && !l.startsWith("#")) {
           url = l;
           break;
