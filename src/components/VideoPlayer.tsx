@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
-import { PictureInPicture2, X } from "lucide-react";
+import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 
 interface Props {
@@ -20,6 +20,8 @@ function proxied(url: string) {
   }
   return url;
 }
+
+const LOAD_TIMEOUT_MS = 20_000;
 
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
