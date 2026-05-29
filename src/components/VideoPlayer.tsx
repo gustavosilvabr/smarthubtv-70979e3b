@@ -263,6 +263,28 @@ export function VideoPlayer({ item, onClose }: Props) {
         </div>
         <div className="aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
           <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
+          {loading && (
+            <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                Carregando canal...
+              </div>
+            </div>
+          )}
+          {error && (
+            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-6 text-center text-foreground">
+              <div className="max-w-lg">
+                <p className="text-sm md:text-base">{error}</p>
+                <button
+                  onClick={() => setAttempt((n) => n + 1)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{item.group}</p>
       </div>
