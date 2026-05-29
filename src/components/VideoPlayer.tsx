@@ -261,7 +261,7 @@ export function VideoPlayer({ item, onClose }: Props) {
             </button>
           </div>
         </div>
-        <div className="aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
+        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
           <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
           {loading && (
             <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
