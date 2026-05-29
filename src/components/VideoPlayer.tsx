@@ -53,72 +53,173 @@ export function VideoPlayer({ item, onClose }: Props) {
 
   useEffect(() => {
     if (!item || !videoRef.current) return;
+
     const video = videoRef.current;
-    const src = proxied(item.url);
-    const isHls = /\.m3u8(\?|$)/i.test(item.url) || item.url.includes("m3u8");
+    const streamUrl = proxied(item.url);
+    const fallbackUrl = item.fallbackUrl ? proxied(item.fallbackUrl) : undefined;
     const isLive = item.type === "live";
-    const isTs = /\.ts(\?|$)/i.test(item.url) || isLive;
+    let disposed = false;
 
-    // teardown previous
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-    if (mpegtsRef.current) {
-      mpegtsRef.current.destroy();
-      mpegtsRef.current = null;
-    }
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
+    const startTimeout = () => {
+      clearLoadTimeout();
+      timeoutRef.current = setTimeout(() => {
+        if (disposed) return;
+        if (fallbackUrl && !fallbackAttemptedRef.current) {
+          console.warn("[live] timeout no HLS, tentando fallback TS", fallbackUrl);
+          playTs(fallbackUrl);
+          return;
+        }
+        setLoading(false);
+        setError(
+          "Não foi possível reproduzir este canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+        );
+      }, LOAD_TIMEOUT_MS);
+    };
 
-    if (isHls && Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-    } else if (isTs && mpegts.isSupported()) {
-      const player = mpegts.createPlayer(
-        { type: "mpegts", isLive, url: src, cors: true },
-        {
-          enableWorker: false,
-          enableStashBuffer: !isLive,
-          stashInitialSize: 128,
-          isLive,
-          liveBufferLatencyChasing: isLive,
-          lazyLoad: false,
-          autoCleanupSourceBuffer: isLive,
-        },
-      );
-      mpegtsRef.current = player;
-      player.on(mpegts.Events.ERROR, (type, detail, info) => {
-        console.error("[mpegts] error", type, detail, info);
-      });
-      player.attachMediaElement(video);
-      player.load();
-      Promise.resolve(player.play()).catch((e: unknown) => console.error("[mpegts] play", e));
-    } else {
-      video.src = src;
-      video.play().catch(() => {});
-    }
-
-    return () => {
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      }
-      if (mpegtsRef.current) {
-        mpegtsRef.current.destroy();
-        mpegtsRef.current = null;
-      }
+    const resetVideo = () => {
+      destroyPlayers();
       video.pause();
       video.removeAttribute("src");
       video.load();
     };
-  }, [item]);
+
+    const markPlaying = () => {
+      clearLoadTimeout();
+      setLoading(false);
+      setError("");
+    };
+
+    const showClickToPlay = () => {
+      clearLoadTimeout();
+      setLoading(false);
+      setError("Clique no play para iniciar o canal.");
+    };
+
+    const playNative = (url: string) => {
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+      video.src = url;
+      video.load();
+      video.play().catch(showClickToPlay);
+    };
+
+    function playTs(url: string) {
+      fallbackAttemptedRef.current = true;
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+
+      if (mpegts.isSupported()) {
+        const player = mpegts.createPlayer(
+          { type: "mpegts", isLive, url, cors: true },
+          {
+            enableWorker: false,
+            enableStashBuffer: !isLive,
+            stashInitialSize: 128,
+            isLive,
+            liveBufferLatencyChasing: isLive,
+            lazyLoad: false,
+            autoCleanupSourceBuffer: isLive,
+          },
+        );
+        mpegtsRef.current = player;
+        player.on(mpegts.Events.ERROR, (type, detail, info) => {
+          console.error("[mpegts] error", type, detail, info);
+          clearLoadTimeout();
+          setLoading(false);
+          setError(
+            "Erro ao carregar o canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+          );
+        });
+        player.attachMediaElement(video);
+        player.load();
+        Promise.resolve(player.play()).catch(showClickToPlay);
+      } else {
+        playNative(url);
+      }
+    }
+
+    const tryFallback = () => {
+      if (fallbackUrl && !fallbackAttemptedRef.current) {
+        console.warn("[live] HLS falhou, tentando fallback TS", fallbackUrl);
+        playTs(fallbackUrl);
+      } else {
+        clearLoadTimeout();
+        setLoading(false);
+        setError(
+          "Erro ao carregar o canal. Este canal pode estar bloqueado por CORS no navegador. Tente usar proxy backend ou servidor com headers liberados.",
+        );
+      }
+    };
+
+    const playWithHls = (url: string) => {
+      resetVideo();
+      startTimeout();
+      console.info("[live] URL final do canal", url);
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 30,
+        liveSyncDurationCount: 3,
+        manifestLoadingTimeOut: 15000,
+        levelLoadingTimeOut: 15000,
+        fragLoadingTimeOut: 20000,
+      });
+
+      hlsRef.current = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(showClickToPlay);
+      });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        console.error("HLS ERROR:", data);
+        if (!data.fatal) return;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hls.startLoad();
+          return;
+        }
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+          return;
+        }
+        tryFallback();
+      });
+    };
+
+    setLoading(true);
+    setError("");
+    fallbackAttemptedRef.current = false;
+    video.onplaying = markPlaying;
+    video.onerror = tryFallback;
+
+    if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8")) {
+      if (Hls.isSupported()) playWithHls(streamUrl);
+      else if (video.canPlayType("application/vnd.apple.mpegurl")) playNative(streamUrl);
+      else if (fallbackUrl) playTs(fallbackUrl);
+      else {
+        setLoading(false);
+        setError("Este navegador não suporta HLS.");
+      }
+    } else if (/\.ts(\?|$)/i.test(streamUrl) || isLive) {
+      playTs(streamUrl);
+    } else {
+      playNative(streamUrl);
+    }
+
+    return () => {
+      disposed = true;
+      clearLoadTimeout();
+      destroyPlayers();
+      video.onplaying = null;
+      video.onerror = null;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [item, attempt, clearLoadTimeout, destroyPlayers]);
 
   if (!item) return null;
 
