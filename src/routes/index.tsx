@@ -3,12 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Sidebar, type Tab } from "@/components/Sidebar";
-import { CategorySection } from "@/components/CategorySection";
-import { SeriesSection } from "@/components/SeriesSection";
+import { CategoryBrowser } from "@/components/CategoryBrowser";
 import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { parseM3U } from "@/utils/parseM3U";
-import { groupSeries, type SeriesShow } from "@/utils/parseEpisode";
+import { type SeriesShow } from "@/utils/parseEpisode";
 import type { M3UItem } from "@/types/iptv";
 
 export const Route = createFileRoute("/")({
@@ -91,21 +90,8 @@ function Dashboard() {
     return list;
   }, [items, tab, favorites, search]);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, M3UItem[]>();
-    for (const it of filtered) {
-      if (!map.has(it.group)) map.set(it.group, []);
-      map.get(it.group)!.push(it);
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([group, items]) => ({ group, items }));
-  }, [filtered]);
+  // (categorization is handled inside CategoryBrowser)
 
-  const seriesGroups = useMemo(() => {
-    if (tab !== "series") return [];
-    return groups.map((g) => ({ group: g.group, shows: groupSeries(g.items) }));
-  }, [groups, tab]);
 
   const counts: Record<Tab, number> = useMemo(
     () => ({
@@ -168,33 +154,15 @@ function Dashboard() {
                 </p>
               </div>
 
-              {groups.length === 0 ? (
-                <div className="py-20 text-center text-muted-foreground">
-                  Nenhum conteúdo encontrado.
-                </div>
-              ) : tab === "series" ? (
-                seriesGroups.map((g) => (
-                  <SeriesSection
-                    key={g.group}
-                    title={g.group}
-                    shows={g.shows}
-                    favorites={favorites}
-                    onOpen={setOpenShow}
-                    onToggleFavorite={toggleFav}
-                  />
-                ))
-              ) : (
-                groups.map((g) => (
-                  <CategorySection
-                    key={g.group}
-                    title={g.group}
-                    items={g.items}
-                    favorites={favorites}
-                    onPlay={setPlaying}
-                    onToggleFavorite={toggleFav}
-                  />
-                ))
-              )}
+              <CategoryBrowser
+                items={filtered}
+                mode={tab}
+                favorites={favorites}
+                onPlay={setPlaying}
+                onOpenShow={setOpenShow}
+                onToggleFavorite={toggleFav}
+              />
+
             </>
           )}
         </main>
