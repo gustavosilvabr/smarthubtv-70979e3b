@@ -23,7 +23,7 @@ export function CategoryBrowser({
   onToggleFavorite,
 }: Props) {
   const [catSearch, setCatSearch] = useState("");
-  const [selected, setSelected] = useState<string>("__all__");
+  const [selected, setSelected] = useState<string>("");
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
@@ -40,13 +40,18 @@ export function CategoryBrowser({
   }, [categories, catSearch]);
 
   useEffect(() => {
-    if (selected !== "__all__" && !categories.some((c) => c.name === selected)) {
-      setSelected("__all__");
+    if (categories.length === 0) {
+      if (selected !== "") setSelected("");
+      return;
+    }
+    if (selected === "" || (selected !== "__all__" && !categories.some((c) => c.name === selected))) {
+      setSelected(categories[0].name);
     }
   }, [categories, selected]);
 
   const visibleItems = useMemo(() => {
     if (selected === "__all__") return items;
+    if (!selected) return [];
     return items.filter((i) => i.group === selected);
   }, [items, selected]);
 

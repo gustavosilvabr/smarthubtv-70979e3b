@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Sidebar, type Tab } from "@/components/Sidebar";
 import { CategoryBrowser } from "@/components/CategoryBrowser";
 import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { HomeTiles } from "@/components/HomeTiles";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import type { M3UItem } from "@/types/iptv";
@@ -26,7 +27,7 @@ function Dashboard() {
   const [items, setItems] = useState<M3UItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("live");
+  const [view, setView] = useState<Tab | null>(null);
   const [search, setSearch] = useState("");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [playing, setPlaying] = useState<M3UItem | null>(null);
@@ -76,23 +77,6 @@ function Dashboard() {
     });
   };
 
-  const filtered = useMemo(() => {
-    let list = items;
-    if (tab === "favorites") {
-      list = list.filter((i) => favorites.has(i.id));
-    } else {
-      list = list.filter((i) => i.type === tab);
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((i) => i.name.toLowerCase().includes(q));
-    }
-    return list;
-  }, [items, tab, favorites, search]);
-
-  // (categorization is handled inside CategoryBrowser)
-
-
   const counts: Record<Tab, number> = useMemo(
     () => ({
       live: items.filter((i) => i.type === "live").length,
@@ -103,11 +87,59 @@ function Dashboard() {
     [items, favorites]
   );
 
+  const filtered = useMemo(() => {
+    if (!view) return [];
+    let list = items;
+    if (view === "favorites") {
+      list = list.filter((i) => favorites.has(i.id));
+    } else {
+      list = list.filter((i) => i.type === view);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter((i) => i.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [items, view, favorites, search]);
+
+  // ----- HOME SCREEN -----
+  if (view === null) {
+    return (
+      <>
+        {loading && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur">
+            <div className="flex flex-col items-center text-muted-foreground">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="mt-3 text-sm">Carregando lista IPTV...</p>
+            </div>
+          </div>
+        )}
+        {error && !loading && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-background/90 p-4">
+            <div className="max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
+              <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
+              <h2 className="mt-3 font-semibold">Erro ao carregar</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        )}
+        <HomeTiles counts={counts} onSelect={setView} />
+      </>
+    );
+  }
+
+  // ----- BROWSE SCREEN -----
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar
-        active={tab}
-        onChange={setTab}
+        active={view}
+        onChange={setView}
         counts={counts}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -119,6 +151,13 @@ function Dashboard() {
           onToggleSidebar={() => setSidebarOpen(true)}
         />
         <main className="flex-1 p-4 md:p-6">
+          <button
+            onClick={() => setView(null)}
+            className="mb-4 inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-accent"
+          >
+            <ArrowLeft className="h-4 w-4" /> Voltar ao início
+          </button>
+
           {loading && (
             <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -131,12 +170,6 @@ function Dashboard() {
               <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
               <h2 className="mt-3 font-semibold">Erro ao carregar</h2>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Tentar novamente
-              </button>
             </div>
           )}
 
@@ -144,10 +177,10 @@ function Dashboard() {
             <>
               <div className="mb-6">
                 <h1 className="text-2xl md:text-3xl font-bold">
-                  {tab === "live" && "Canais ao vivo"}
-                  {tab === "movie" && "Filmes"}
-                  {tab === "series" && "Séries"}
-                  {tab === "favorites" && "Meus favoritos"}
+                  {view === "live" && "Canais ao vivo"}
+                  {view === "movie" && "Filmes"}
+                  {view === "series" && "Séries"}
+                  {view === "favorites" && "Meus favoritos"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {filtered.length} resultados {search && `para "${search}"`}
@@ -156,13 +189,12 @@ function Dashboard() {
 
               <CategoryBrowser
                 items={filtered}
-                mode={tab}
+                mode={view}
                 favorites={favorites}
                 onPlay={setPlaying}
                 onOpenShow={setOpenShow}
                 onToggleFavorite={toggleFav}
               />
-
             </>
           )}
         </main>
