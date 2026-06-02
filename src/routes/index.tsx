@@ -3,12 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Sidebar, type Tab } from "@/components/Sidebar";
-import { CategorySection } from "@/components/CategorySection";
-import { SeriesSection } from "@/components/SeriesSection";
+import { CategoryBrowser } from "@/components/CategoryBrowser";
 import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { parseM3U } from "@/utils/parseM3U";
-import { groupSeries, type SeriesShow } from "@/utils/parseEpisode";
+import { type SeriesShow } from "@/utils/parseEpisode";
 import type { M3UItem } from "@/types/iptv";
 
 export const Route = createFileRoute("/")({
