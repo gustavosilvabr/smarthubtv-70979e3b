@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Film, Heart, Radio, Settings, Tv } from "lucide-react";
 import type { Tab } from "./Sidebar";
 
