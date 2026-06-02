@@ -90,21 +90,8 @@ function Dashboard() {
     return list;
   }, [items, tab, favorites, search]);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, M3UItem[]>();
-    for (const it of filtered) {
-      if (!map.has(it.group)) map.set(it.group, []);
-      map.get(it.group)!.push(it);
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([group, items]) => ({ group, items }));
-  }, [filtered]);
+  // (categorization is handled inside CategoryBrowser)
 
-  const seriesGroups = useMemo(() => {
-    if (tab !== "series") return [];
-    return groups.map((g) => ({ group: g.group, shows: groupSeries(g.items) }));
-  }, [groups, tab]);
 
   const counts: Record<Tab, number> = useMemo(
     () => ({
