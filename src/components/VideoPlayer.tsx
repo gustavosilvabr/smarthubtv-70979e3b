@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import Hls from "hls.js";
-import mpegts from "mpegts.js";
+import type HlsType from "hls.js";
+import type mpegtsType from "mpegts.js";
 import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
+
+type Hls = HlsType;
+type MpegtsPlayer = ReturnType<typeof mpegtsType.createPlayer>;
 
 interface Props {
   item: M3UItem | null;
