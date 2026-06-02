@@ -23,7 +23,7 @@ export function CategoryBrowser({
   onToggleFavorite,
 }: Props) {
   const [catSearch, setCatSearch] = useState("");
-  const [selected, setSelected] = useState<string>("__all__");
+  const [selected, setSelected] = useState<string>("");
 
   const categories = useMemo(() => {
     const map = new Map<string, number>();
