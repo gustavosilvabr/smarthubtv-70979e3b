@@ -154,33 +154,15 @@ function Dashboard() {
                 </p>
               </div>
 
-              {groups.length === 0 ? (
-                <div className="py-20 text-center text-muted-foreground">
-                  Nenhum conteúdo encontrado.
-                </div>
-              ) : tab === "series" ? (
-                seriesGroups.map((g) => (
-                  <SeriesSection
-                    key={g.group}
-                    title={g.group}
-                    shows={g.shows}
-                    favorites={favorites}
-                    onOpen={setOpenShow}
-                    onToggleFavorite={toggleFav}
-                  />
-                ))
-              ) : (
-                groups.map((g) => (
-                  <CategorySection
-                    key={g.group}
-                    title={g.group}
-                    items={g.items}
-                    favorites={favorites}
-                    onPlay={setPlaying}
-                    onToggleFavorite={toggleFav}
-                  />
-                ))
-              )}
+              <CategoryBrowser
+                items={filtered}
+                mode={tab}
+                favorites={favorites}
+                onPlay={setPlaying}
+                onOpenShow={setOpenShow}
+                onToggleFavorite={toggleFav}
+              />
+
             </>
           )}
         </main>
