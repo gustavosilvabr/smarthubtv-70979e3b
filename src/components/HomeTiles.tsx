@@ -52,9 +52,14 @@ const TILES: Tile[] = [
 ];
 
 export function HomeTiles({ counts, onSelect }: Props) {
-  const now = new Date();
-  const time = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const date = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const time = now ? now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
+  const date = now ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#0b1a3a_0%,_#020617_70%)] text-foreground">
