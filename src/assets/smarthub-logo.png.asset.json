@@ -1,11 +1,11 @@
 {
-  "version": 1,
   "asset_id": "69326e4b-678e-46b1-82d9-5e1226b94a9c",
-  "project_id": "56b6d63a-3b15-446b-bf55-e21fcef69576",
-  "url": "/__l5e/assets-v1/69326e4b-678e-46b1-82d9-5e1226b94a9c/smarthub-logo.png",
-  "r2_key": "a/v1/56b6d63a-3b15-446b-bf55-e21fcef69576/69326e4b-678e-46b1-82d9-5e1226b94a9c/smarthub-logo.png",
-  "original_filename": "smarthub-logo.png",
-  "size": 64013,
   "content_type": "image/png",
-  "created_at": "2026-06-03T16:01:51Z"
+  "created_at": "2026-06-03T16:01:51Z",
+  "original_filename": "smarthub-logo.png",
+  "project_id": "93f58fd7-3259-4e9e-a1d5-5477593b2da6",
+  "r2_key": "a/v1/93f58fd7-3259-4e9e-a1d5-5477593b2da6/69326e4b-678e-46b1-82d9-5e1226b94a9c/smarthub-logo.png",
+  "size": 64013,
+  "url": "/__l5e/assets-v1/69326e4b-678e-46b1-82d9-5e1226b94a9c/smarthub-logo.png",
+  "version": 1
 }
