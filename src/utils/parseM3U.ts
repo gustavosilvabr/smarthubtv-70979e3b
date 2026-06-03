@@ -10,6 +10,14 @@ function decodeAttr(value: string): string {
   return value.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 }
 
+function stableHash(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  }
+  return hash.toString(36);
+}
+
 export function parseM3U(text: string): M3UItem[] {
   const lines = text.split(/\r?\n/);
   const out: M3UItem[] = [];
@@ -24,6 +32,7 @@ export function parseM3U(text: string): M3UItem[] {
       const commaIdx = line.lastIndexOf(",");
       const name = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "Sem nome";
       let fallbackUrl = "";
+      let forcedType = "";
       // find next non-comment line as URL
       let url = "";
       let j = i + 1;
@@ -31,6 +40,7 @@ export function parseM3U(text: string): M3UItem[] {
         const l = lines[j].trim();
         if (l.startsWith("#SMART-HUB:")) {
           fallbackUrl = decodeAttr(attr(l, "fallback-url"));
+          forcedType = attr(l, "type");
         }
         if (l && !l.startsWith("#")) {
           url = l;
@@ -39,14 +49,18 @@ export function parseM3U(text: string): M3UItem[] {
         j++;
       }
       if (url) {
+        const type = forcedType === "live" || forcedType === "movie" || forcedType === "series"
+          ? forcedType
+          : classifyContent(group, url);
+        const uniquePart = streamId || `${idx++}`;
         out.push({
-          id: streamId || `${idx++}-${name}`,
+          id: `${type}:${uniquePart}:${stableHash(`${name}|${group}|${url}`)}`,
           name,
           logo,
           group,
           url,
           fallbackUrl: fallbackUrl || undefined,
-          type: classifyContent(group, url),
+          type,
           streamId: streamId || undefined,
         });
       }

@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildLiveStreamUrls } from "@/utils/buildLiveStreamUrls";
+import { DEFAULT_IPTV_SETTINGS, normalizeIptvSettings } from "@/utils/iptvSettings";
+import { parseEpisode } from "@/utils/parseEpisode";
 
-const XTREAM_SERVER = "https://blckbr.shop";
-const XTREAM_USERNAME = "janio798";
-const XTREAM_PASSWORD = "7338644862";
-const M3U_URL = `${XTREAM_SERVER}/get.php?username=${XTREAM_USERNAME}&password=${XTREAM_PASSWORD}&type=m3u_plus&output=mpegts`;
+const DEFAULT_SETTINGS = DEFAULT_IPTV_SETTINGS;
 
 interface LiveCategory {
   category_id: string;
@@ -18,15 +17,40 @@ interface LiveStream {
   category_id?: string;
 }
 
+interface VodCategory {
+  category_id: string;
+  category_name: string;
+}
+
+interface VodStream {
+  stream_id: string | number;
+  name: string;
+  stream_icon?: string;
+  category_id?: string;
+  container_extension?: string;
+}
+
+interface SeriesStream {
+  series_id: string | number;
+  name: string;
+  cover?: string;
+  category_id?: string;
+}
+
 export const Route = createFileRoute("/api/m3u")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         try {
-          const [categoriesRes, streamsRes, m3uRes] = await Promise.all([
-            xtreamFetch("get_live_categories"),
-            xtreamFetch("get_live_streams"),
-            fetch(M3U_URL, {
+          const settings = getSettingsFromRequest(request);
+          const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
+          const [categoriesRes, streamsRes, vodCategoriesRes, vodStreamsRes, seriesRes, m3uRes] = await Promise.all([
+            xtreamFetch(settings, "get_live_categories"),
+            xtreamFetch(settings, "get_live_streams"),
+            xtreamFetch(settings, "get_vod_categories"),
+            xtreamFetch(settings, "get_vod_streams"),
+            xtreamFetch(settings, "get_series"),
+            fetch(m3uUrl, {
               headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
               redirect: "follow",
             }),
@@ -36,14 +60,19 @@ export const Route = createFileRoute("/api/m3u")({
             return new Response(`Upstream error: ${m3uRes.status}`, { status: 502 });
           }
 
-          const [categories, streams, m3uText] = await Promise.all([
+          const [categories, streams, vodCategories, vodStreams, seriesStreams, m3uText] = await Promise.all([
             categoriesRes.json() as Promise<LiveCategory[]>,
             streamsRes.json() as Promise<LiveStream[]>,
+            vodCategoriesRes.json() as Promise<VodCategory[]>,
+            vodStreamsRes.json() as Promise<VodStream[]>,
+            seriesRes.json() as Promise<SeriesStream[]>,
             m3uRes.text(),
           ]);
 
-          const liveM3u = buildLiveM3U(categories, streams);
-          const body = `${liveM3u}\n${keepOnlyVodAndSeries(m3uText)}`;
+          const liveM3u = buildLiveM3U(settings, categories, streams);
+          const vodM3u = buildVodM3U(settings, vodCategories, vodStreams);
+          const seriesM3u = keepOnlySeries(enrichSeriesLogos(m3uText, seriesStreams));
+          const body = `${liveM3u}\n${vodM3u}\n${seriesM3u}`;
 
           return new Response(body, {
             status: 200,
@@ -60,8 +89,17 @@ export const Route = createFileRoute("/api/m3u")({
   },
 });
 
-async function xtreamFetch(action: "get_live_categories" | "get_live_streams") {
-  const url = `${XTREAM_SERVER}/player_api.php?username=${XTREAM_USERNAME}&password=${XTREAM_PASSWORD}&action=${action}`;
+function getSettingsFromRequest(request: Request) {
+  const url = new URL(request.url);
+  return normalizeIptvSettings({
+    server: url.searchParams.get("server") || DEFAULT_SETTINGS.server,
+    username: url.searchParams.get("username") || DEFAULT_SETTINGS.username,
+    password: url.searchParams.get("password") || DEFAULT_SETTINGS.password,
+  });
+}
+
+async function xtreamFetch(settings: typeof DEFAULT_SETTINGS, action: string) {
+  const url = `${settings.server}/player_api.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&action=${action}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
     redirect: "follow",
@@ -70,16 +108,16 @@ async function xtreamFetch(action: "get_live_categories" | "get_live_streams") {
   return res;
 }
 
-function buildLiveM3U(categories: LiveCategory[], streams: LiveStream[]) {
+function buildLiveM3U(settings: typeof DEFAULT_SETTINGS, categories: LiveCategory[], streams: LiveStream[]) {
   const categoryNames = new Map(categories.map((c) => [String(c.category_id), c.category_name]));
   const lines = ["#EXTM3U"];
 
   for (const channel of streams) {
     if (!channel.stream_id) continue;
     const urls = buildLiveStreamUrls(
-      XTREAM_SERVER,
-      XTREAM_USERNAME,
-      XTREAM_PASSWORD,
+      settings.server,
+      settings.username,
+      settings.password,
       channel.stream_id,
     );
     const name = escapeAttr(channel.name || `Canal ${channel.stream_id}`);
@@ -96,11 +134,33 @@ function buildLiveM3U(categories: LiveCategory[], streams: LiveStream[]) {
   return lines.join("\n");
 }
 
+function buildVodM3U(settings: typeof DEFAULT_SETTINGS, categories: VodCategory[], streams: VodStream[]) {
+  const categoryNames = new Map(categories.map((c) => [String(c.category_id), c.category_name]));
+  const lines: string[] = [];
+
+  for (const movie of streams) {
+    if (!movie.stream_id) continue;
+    const ext = (movie.container_extension || "mp4").replace(/^\./, "") || "mp4";
+    const name = escapeAttr(movie.name || `Filme ${movie.stream_id}`);
+    const logo = escapeAttr(movie.stream_icon || "");
+    const group = escapeAttr(categoryNames.get(String(movie.category_id)) || "Filmes");
+    const url = `${settings.server}/movie/${encodeURIComponent(settings.username)}/${encodeURIComponent(settings.password)}/${movie.stream_id}.${ext}`;
+
+    lines.push(
+      `#EXTINF:-1 tvg-id="movie-${movie.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${movie.name}`,
+      `#SMART-HUB:stream-id="movie-${movie.stream_id}" type="movie"`,
+      url,
+    );
+  }
+
+  return lines.join("\n");
+}
+
 function stripHeader(text: string) {
   return text.replace(/^#EXTM3U[^\n]*(\r?\n)?/i, "").trimStart();
 }
 
-function keepOnlyVodAndSeries(text: string) {
+function keepOnlySeries(text: string) {
   const lines = stripHeader(text).split(/\r?\n/);
   const kept: string[] = [];
 
@@ -122,11 +182,37 @@ function keepOnlyVodAndSeries(text: string) {
       j++;
     }
 
-    if (url && !/\/live\//i.test(url)) kept.push(...entry);
+    if (url && /\/series\//i.test(url)) kept.push(...entry);
     i = j;
   }
 
   return kept.join("\n");
+}
+
+function enrichSeriesLogos(text: string, series: SeriesStream[]) {
+  const logoByName = new Map(
+    series
+      .filter((show) => show.name && show.cover)
+      .map((show) => [normalizeName(show.name), show.cover || ""]),
+  );
+
+  return text.split(/\r?\n/).map((line) => {
+    if (!line.startsWith("#EXTINF")) return line;
+    const commaIdx = line.lastIndexOf(",");
+    const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
+    const showName = parseEpisode(fullName).showName;
+    const logo = logoByName.get(normalizeName(showName));
+    if (!logo) return line;
+
+    if (/tvg-logo="[^"]*"/i.test(line)) {
+      return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
+    }
+    return line.replace("#EXTINF", `#EXTINF tvg-logo="${escapeAttr(logo)}"`);
+  }).join("\n");
+}
+
+function normalizeName(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function escapeAttr(value: string) {
