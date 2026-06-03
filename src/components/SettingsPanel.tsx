@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { ArrowLeft, Loader2, Save, Server } from "lucide-react";
+import { ArrowLeft, Loader2, LogOut, Save, Server } from "lucide-react";
 import type { IptvSettings } from "@/utils/iptvSettings";
 import { normalizeIptvSettings } from "@/utils/iptvSettings";
 
@@ -8,9 +8,10 @@ interface Props {
   loading: boolean;
   onSave: (settings: IptvSettings) => void;
   onHome: () => void;
+  onLogout?: () => void;
 }
 
-export function SettingsPanel({ settings, loading, onSave, onHome }: Props) {
+export function SettingsPanel({ settings, loading, onSave, onHome, onLogout }: Props) {
   const [form, setForm] = useState(settings);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -83,6 +84,15 @@ export function SettingsPanel({ settings, loading, onSave, onHome }: Props) {
               >
                 Voltar para Home
               </button>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/20 sm:ml-auto"
+                >
+                  <LogOut className="h-4 w-4" /> Sair / Trocar conta
+                </button>
+              )}
             </div>
           </form>
         </div>
