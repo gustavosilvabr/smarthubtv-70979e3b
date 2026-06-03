@@ -1,6 +1,8 @@
-import { Heart, Play, Tv } from "lucide-react";
+import { Heart, Play } from "lucide-react";
 import { useState } from "react";
 import type { M3UItem } from "@/types/iptv";
+import { MediaFallback } from "./MediaFallback";
+import { getDisplayImageUrl } from "@/utils/media";
 
 interface Props {
   item: M3UItem;
@@ -12,24 +14,23 @@ interface Props {
 export function ContentCard({ item, isFavorite, onPlay, onToggleFavorite }: Props) {
   const [imgError, setImgError] = useState(false);
   const aspect = item.type === "live" ? "aspect-video" : "aspect-[2/3]";
+  const imageUrl = getDisplayImageUrl(item.logo);
 
   return (
     <div className="group relative w-40 md:w-48 shrink-0">
       <div
         className={`${aspect} relative w-full overflow-hidden rounded-md bg-card ring-1 ring-border transition-transform duration-300 group-hover:scale-105 group-hover:ring-primary`}
       >
-        {item.logo && !imgError ? (
+        {imageUrl && !imgError ? (
           <img
-            src={item.logo}
+            src={imageUrl}
             alt={item.name}
             loading="lazy"
             onError={() => setImgError(true)}
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent to-secondary">
-            <Tv className="h-10 w-10 text-muted-foreground" />
-          </div>
+          <MediaFallback title={item.name} type={item.type} />
         )}
 
         <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition">

@@ -1,6 +1,8 @@
-import { Heart, Play, Tv } from "lucide-react";
+import { Heart, Play } from "lucide-react";
 import { useState } from "react";
 import type { SeriesShow } from "@/utils/parseEpisode";
+import { MediaFallback } from "./MediaFallback";
+import { getDisplayImageUrl } from "@/utils/media";
 
 interface Props {
   show: SeriesShow;
@@ -11,21 +13,20 @@ interface Props {
 
 export function SeriesCard({ show, isFavorite, onOpen, onToggleFavorite }: Props) {
   const [imgError, setImgError] = useState(false);
+  const imageUrl = getDisplayImageUrl(show.logo);
   return (
     <div className="group relative w-40 md:w-48 shrink-0">
       <div className="aspect-[2/3] relative w-full overflow-hidden rounded-md bg-card ring-1 ring-border transition-transform duration-300 group-hover:scale-105 group-hover:ring-primary">
-        {show.logo && !imgError ? (
+        {imageUrl && !imgError ? (
           <img
-            src={show.logo}
+            src={imageUrl}
             alt={show.name}
             loading="lazy"
             onError={() => setImgError(true)}
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-accent to-secondary">
-            <Tv className="h-10 w-10 text-muted-foreground" />
-          </div>
+          <MediaFallback title={show.name} type="series" />
         )}
         <div className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold">
           {show.seasons.size}T · {show.episodeCount}EP

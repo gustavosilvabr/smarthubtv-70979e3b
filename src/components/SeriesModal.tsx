@@ -3,6 +3,7 @@ import { Play, X, Tv } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import type { SeriesShow } from "@/utils/parseEpisode";
 import { parseEpisode } from "@/utils/parseEpisode";
+import { getDisplayImageUrl } from "@/utils/media";
 
 interface Props {
   show: SeriesShow | null;
@@ -17,14 +18,15 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
 
   if (!show) return null;
   const episodes = currentSeason != null ? (show.seasons.get(currentSeason) ?? []) : [];
+  const imageUrl = getDisplayImageUrl(show.logo);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 animate-in fade-in">
       <div className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl bg-card ring-1 ring-border shadow-2xl flex flex-col">
         <div className="flex items-start gap-4 p-5 border-b border-border">
           <div className="h-24 w-16 shrink-0 overflow-hidden rounded bg-secondary">
-            {show.logo ? (
-              <img src={show.logo} alt={show.name} className="h-full w-full object-cover" />
+            {imageUrl ? (
+              <img src={imageUrl} alt={show.name} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
                 <Tv className="h-6 w-6 text-muted-foreground" />
@@ -52,7 +54,7 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
             const active = s === currentSeason;
             return (
               <button
-                key={s}
+                key={`${show.id}-season-${s}`}
                 onClick={() => setSelected(s)}
                 className={`shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition ${
                   active
@@ -71,7 +73,7 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
             const info = parseEpisode(ep.name);
             return (
               <button
-                key={ep.id}
+                key={`${show.id}-season-${currentSeason}-episode-${ep.id}`}
                 onClick={() => onPlay(ep)}
                 className="flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left hover:border-primary hover:bg-accent transition"
               >
