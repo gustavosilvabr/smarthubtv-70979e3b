@@ -46,7 +46,7 @@ export function LoadingScreen({ stage, error, onRetry }: Props) {
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center px-6 py-10">
-        <Logo className="mb-10 h-28 w-auto drop-shadow-[0_0_30px_rgba(168,85,247,0.55)]" />
+        <Logo className="mb-10 h-56 w-auto drop-shadow-[0_0_40px_rgba(168,85,247,0.7)] md:h-72" />
 
         <div className="w-full rounded-2xl border border-primary/20 bg-card/70 p-6 shadow-2xl backdrop-blur">
           <h2 className="mb-5 text-center text-sm font-semibold uppercase tracking-[0.3em] text-primary">
