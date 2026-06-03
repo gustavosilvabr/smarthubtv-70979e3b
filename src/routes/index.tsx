@@ -6,9 +6,16 @@ import { Sidebar, type Tab } from "@/components/Sidebar";
 import { CategoryBrowser } from "@/components/CategoryBrowser";
 import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import { HomeTiles } from "@/components/HomeTiles";
+import { HomeTiles, type HomeTileTarget } from "@/components/HomeTiles";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
+import {
+  DEFAULT_IPTV_SETTINGS,
+  IPTV_SETTINGS_KEY,
+  settingsToQuery,
+  type IptvSettings,
+} from "@/utils/iptvSettings";
 import type { M3UItem } from "@/types/iptv";
 
 export const Route = createFileRoute("/")({
@@ -22,13 +29,15 @@ export const Route = createFileRoute("/")({
 });
 
 const FAV_KEY = "flixtv:favorites";
+type View = Tab | "settings" | null;
 
 function Dashboard() {
   const [items, setItems] = useState<M3UItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<Tab | null>(null);
+  const [view, setView] = useState<View>(null);
   const [search, setSearch] = useState("");
+  const [settings, setSettings] = useState<IptvSettings>(DEFAULT_IPTV_SETTINGS);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [playing, setPlaying] = useState<M3UItem | null>(null);
   const [openShow, setOpenShow] = useState<SeriesShow | null>(null);
@@ -38,6 +47,8 @@ function Dashboard() {
     try {
       const raw = localStorage.getItem(FAV_KEY);
       if (raw) setFavorites(new Set(JSON.parse(raw)));
+      const rawSettings = localStorage.getItem(IPTV_SETTINGS_KEY);
+      if (rawSettings) setSettings(JSON.parse(rawSettings));
     } catch {}
   }, []);
 
@@ -45,7 +56,7 @@ function Dashboard() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch("/api/m3u")
+    fetch(`/api/m3u?${settingsToQuery(settings)}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`Erro ${r.status} ao carregar lista`);
         return r.text();
@@ -63,7 +74,29 @@ function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [settings]);
+
+  const goHome = () => {
+    setView(null);
+    setSearch("");
+    setPlaying(null);
+    setOpenShow(null);
+  };
+
+  const selectHomeTile = (target: HomeTileTarget) => {
+    setSearch("");
+    setView(target);
+  };
+
+  const saveSettings = (next: IptvSettings) => {
+    try {
+      localStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
+    } catch {}
+    setItems([]);
+    setPlaying(null);
+    setOpenShow(null);
+    setSettings(next);
+  };
 
   const toggleFav = (id: string) => {
     setFavorites((prev) => {
