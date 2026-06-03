@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Film, Heart, Radio, Settings, Tv } from "lucide-react";
 import type { Tab } from "./Sidebar";
 
+export type HomeTileTarget = Tab | "settings";
+
 interface Props {
   counts: Record<Tab, number>;
-  onSelect: (tab: Tab) => void;
+  onSelect: (tab: HomeTileTarget) => void;
 }
 
 interface Tile {
@@ -13,7 +15,6 @@ interface Tile {
   icon: React.ComponentType<{ className?: string }>;
   gradient: string;
   large?: boolean;
-  disabled?: boolean;
 }
 
 const TILES: Tile[] = [
@@ -37,17 +38,10 @@ const TILES: Tile[] = [
     gradient: "from-fuchsia-500 via-purple-500 to-indigo-500",
   },
   {
-    id: "favorites",
-    label: "FAVORITES",
-    icon: Heart,
-    gradient: "from-emerald-500/80 to-teal-600/80",
-  },
-  {
     id: "settings",
     label: "SETTINGS",
     icon: Settings,
     gradient: "from-emerald-500/80 to-teal-600/80",
-    disabled: true,
   },
 ];
 
@@ -144,24 +138,10 @@ export function HomeTiles({ counts, onSelect }: Props) {
             </div>
           </button>
 
-          {/* Favorites */}
+          {/* Settings */}
           <button
-            onClick={() => onSelect("favorites")}
+            onClick={() => onSelect("settings")}
             className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${TILES[3].gradient} p-5 text-left shadow-xl transition hover:scale-[1.015]`}
-          >
-            <div className="flex h-full items-center justify-center gap-3 text-white">
-              <Heart className="h-7 w-7" />
-              <div className="text-lg font-extrabold tracking-wide">FAVORITES</div>
-            </div>
-            <div className="absolute right-3 top-3 rounded-full bg-black/30 px-2 py-0.5 text-[10px] font-bold">
-              {counts.favorites}
-            </div>
-          </button>
-
-          {/* Settings (disabled placeholder) */}
-          <button
-            disabled
-            className="group relative col-span-2 overflow-hidden rounded-2xl bg-gradient-to-br from-slate-600/60 to-slate-800/60 p-5 text-left shadow-xl opacity-70 cursor-not-allowed"
           >
             <div className="flex h-full items-center justify-center gap-3 text-white">
               <Settings className="h-7 w-7" />
