@@ -67,7 +67,7 @@ export function HomeTiles({ counts, onSelect }: Props) {
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 py-8 min-h-screen">
         {/* Top bar */}
         <div className="flex items-center justify-between">
-          <Logo className="h-12 w-auto drop-shadow-[0_0_24px_rgba(168,85,247,0.5)] md:h-14" />
+          <Logo className="h-28 w-auto drop-shadow-[0_0_30px_rgba(168,85,247,0.6)] md:h-40" />
 
           <div className="flex items-center gap-6">
             <div className="text-right">
