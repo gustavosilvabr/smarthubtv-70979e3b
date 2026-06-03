@@ -121,7 +121,7 @@ function Dashboard() {
   );
 
   const filtered = useMemo(() => {
-    if (!view) return [];
+    if (!view || view === "settings") return [];
     let list = items;
     if (view === "favorites") {
       list = list.filter((i) => favorites.has(i.id));
@@ -162,8 +162,19 @@ function Dashboard() {
             </div>
           </div>
         )}
-        <HomeTiles counts={counts} onSelect={setView} />
+        <HomeTiles counts={counts} onSelect={selectHomeTile} />
       </>
+    );
+  }
+
+  if (view === "settings") {
+    return (
+      <SettingsPanel
+        settings={settings}
+        loading={loading}
+        onSave={saveSettings}
+        onHome={goHome}
+      />
     );
   }
 
@@ -185,7 +196,7 @@ function Dashboard() {
         />
         <main className="flex-1 p-4 md:p-6">
           <button
-            onClick={() => setView(null)}
+            onClick={goHome}
             className="mb-4 inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-accent"
           >
             <ArrowLeft className="h-4 w-4" /> Voltar ao início
