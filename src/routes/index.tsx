@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Sidebar, type Tab } from "@/components/Sidebar";
 import { CategoryBrowser } from "@/components/CategoryBrowser";
@@ -8,6 +8,8 @@ import { SeriesModal } from "@/components/SeriesModal";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { HomeTiles, type HomeTileTarget } from "@/components/HomeTiles";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { LoginScreen } from "@/components/LoginScreen";
+import { LoadingScreen, type LoadingStage } from "@/components/LoadingScreen";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import {
@@ -22,7 +24,7 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
   head: () => ({
     meta: [
-      { title: "FlixTV — IPTV Player Premium" },
+      { title: "Smart Hub Play TV — IPTV Player" },
       { name: "description", content: "Assista canais ao vivo, filmes e séries em alta qualidade." },
     ],
   }),
@@ -30,10 +32,13 @@ export const Route = createFileRoute("/")({
 
 const FAV_KEY = "flixtv:favorites";
 type View = Tab | "settings" | null;
+type Stage = "login" | "loading" | "ready";
 
 function Dashboard() {
   const [items, setItems] = useState<M3UItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState<Stage>("login");
+  const [bootDone, setBootDone] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<LoadingStage>("live");
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(null);
   const [search, setSearch] = useState("");
@@ -42,39 +47,64 @@ function Dashboard() {
   const [playing, setPlaying] = useState<M3UItem | null>(null);
   const [openShow, setOpenShow] = useState<SeriesShow | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const fetchSeq = useRef(0);
 
+  // Boot: read storage once on client.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(FAV_KEY);
       if (raw) setFavorites(new Set(JSON.parse(raw)));
       const rawSettings = localStorage.getItem(IPTV_SETTINGS_KEY);
-      if (rawSettings) setSettings(JSON.parse(rawSettings));
+      if (rawSettings) {
+        const parsed = JSON.parse(rawSettings) as IptvSettings;
+        if (parsed?.server && parsed?.username && parsed?.password) {
+          setSettings(parsed);
+          setStage("loading");
+        }
+      }
     } catch {}
+    setBootDone(true);
   }, []);
 
+  // When entering loading stage, fetch and animate stages.
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+    if (stage !== "loading") return;
+    if (!settings.server || !settings.username || !settings.password) return;
+
+    const id = ++fetchSeq.current;
     setError(null);
+    setLoadingStage("live");
+
+    const stageTimers: ReturnType<typeof setTimeout>[] = [];
+    stageTimers.push(setTimeout(() => id === fetchSeq.current && setLoadingStage("vod"), 700));
+    stageTimers.push(setTimeout(() => id === fetchSeq.current && setLoadingStage("series"), 1400));
+    stageTimers.push(setTimeout(() => id === fetchSeq.current && setLoadingStage("epg"), 2100));
+
     fetch(`/api/m3u?${settingsToQuery(settings)}`)
       .then(async (r) => {
         if (!r.ok) throw new Error(`Erro ${r.status} ao carregar lista`);
         return r.text();
       })
       .then((text) => {
-        if (cancelled) return;
+        if (id !== fetchSeq.current) return;
         const parsed = parseM3U(text);
         if (!parsed.length) throw new Error("Lista vazia ou inválida");
         setItems(parsed);
+        setLoadingStage("done");
+        // Tiny pause for the "Completed!" beat.
+        setTimeout(() => {
+          if (id === fetchSeq.current) setStage("ready");
+        }, 500);
       })
-      .catch((e) => {
-        if (!cancelled) setError(e.message || "Falha ao carregar a lista M3U");
-      })
-      .finally(() => !cancelled && setLoading(false));
+      .catch((e: Error) => {
+        if (id !== fetchSeq.current) return;
+        setError(e.message || "Falha ao carregar a lista");
+      });
+
     return () => {
-      cancelled = true;
+      stageTimers.forEach(clearTimeout);
     };
-  }, [settings]);
+  }, [stage, settings]);
 
   const goHome = () => {
     setView(null);
@@ -88,6 +118,15 @@ function Dashboard() {
     setView(target);
   };
 
+  const handleLogin = (next: IptvSettings) => {
+    try {
+      localStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
+    } catch {}
+    setItems([]);
+    setSettings(next);
+    setStage("loading");
+  };
+
   const saveSettings = (next: IptvSettings) => {
     try {
       localStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
@@ -95,7 +134,21 @@ function Dashboard() {
     setItems([]);
     setPlaying(null);
     setOpenShow(null);
+    setView(null);
     setSettings(next);
+    setStage("loading");
+  };
+
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(IPTV_SETTINGS_KEY);
+    } catch {}
+    setItems([]);
+    setView(null);
+    setPlaying(null);
+    setOpenShow(null);
+    setSettings(DEFAULT_IPTV_SETTINGS);
+    setStage("login");
   };
 
   const toggleFav = (id: string) => {
@@ -135,50 +188,50 @@ function Dashboard() {
     return list;
   }, [items, view, favorites, search]);
 
-  // ----- HOME SCREEN -----
-  if (view === null) {
+  // ---------- Render gates ----------
+
+  // Prevent SSR/hydration mismatch — wait until we've read localStorage.
+  if (!bootDone) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
+  if (stage === "login") {
+    return <LoginScreen onSubmit={handleLogin} initial={settings} />;
+  }
+
+  if (stage === "loading") {
     return (
-      <>
-        {loading && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur">
-            <div className="flex flex-col items-center text-muted-foreground">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="mt-3 text-sm">Carregando lista IPTV...</p>
-            </div>
-          </div>
-        )}
-        {error && !loading && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-background/90 p-4">
-            <div className="max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
-              <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
-              <h2 className="mt-3 font-semibold">Erro ao carregar</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          </div>
-        )}
-        <HomeTiles counts={counts} onSelect={selectHomeTile} />
-      </>
+      <LoadingScreen
+        stage={loadingStage}
+        error={error}
+        onRetry={() => {
+          setError(null);
+          setStage("loading");
+          // re-trigger by bumping settings ref
+          setSettings((s) => ({ ...s }));
+        }}
+      />
     );
+  }
+
+  // ---------- HOME ----------
+  if (view === null) {
+    return <HomeTiles counts={counts} onSelect={selectHomeTile} />;
   }
 
   if (view === "settings") {
     return (
       <SettingsPanel
         settings={settings}
-        loading={loading}
+        loading={false}
         onSave={saveSettings}
         onHome={goHome}
+        onLogout={handleLogout}
       />
     );
   }
 
-  // ----- BROWSE SCREEN -----
+  // ---------- BROWSE ----------
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <Sidebar
@@ -202,45 +255,26 @@ function Dashboard() {
             <ArrowLeft className="h-4 w-4" /> Voltar ao início
           </button>
 
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="mt-4 text-sm">Carregando lista IPTV...</p>
-            </div>
-          )}
+          <div className="mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold">
+              {view === "live" && "Canais ao vivo"}
+              {view === "movie" && "Filmes"}
+              {view === "series" && "Séries"}
+              {view === "favorites" && "Meus favoritos"}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filtered.length} resultados {search && `para "${search}"`}
+            </p>
+          </div>
 
-          {error && !loading && (
-            <div className="mx-auto max-w-md rounded-lg border border-destructive/30 bg-destructive/10 p-6 text-center">
-              <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
-              <h2 className="mt-3 font-semibold">Erro ao carregar</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-            </div>
-          )}
-
-          {!loading && !error && (
-            <>
-              <div className="mb-6">
-                <h1 className="text-2xl md:text-3xl font-bold">
-                  {view === "live" && "Canais ao vivo"}
-                  {view === "movie" && "Filmes"}
-                  {view === "series" && "Séries"}
-                  {view === "favorites" && "Meus favoritos"}
-                </h1>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {filtered.length} resultados {search && `para "${search}"`}
-                </p>
-              </div>
-
-              <CategoryBrowser
-                items={filtered}
-                mode={view}
-                favorites={favorites}
-                onPlay={setPlaying}
-                onOpenShow={setOpenShow}
-                onToggleFavorite={toggleFav}
-              />
-            </>
-          )}
+          <CategoryBrowser
+            items={filtered}
+            mode={view}
+            favorites={favorites}
+            onPlay={setPlaying}
+            onOpenShow={setOpenShow}
+            onToggleFavorite={toggleFav}
+          />
         </main>
       </div>
 
