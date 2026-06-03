@@ -17,7 +17,7 @@ export function Header({ search, onSearch, onToggleSidebar }: Props) {
       >
         <Menu className="h-5 w-5" />
       </button>
-      <Logo className="h-9 w-auto" />
+      <Logo className="h-14 w-auto md:h-16" />
       <div className="ml-auto flex-1 max-w-md relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input

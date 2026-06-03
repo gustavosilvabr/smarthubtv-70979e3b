@@ -37,7 +37,7 @@ export function LoginScreen({ onSubmit, initial }: Props) {
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-6 py-10">
-        <Logo className="mb-8 h-28 w-auto drop-shadow-[0_0_30px_rgba(168,85,247,0.55)]" />
+        <Logo className="mb-8 h-56 w-auto drop-shadow-[0_0_40px_rgba(168,85,247,0.7)] md:h-72" />
 
         <p className="mb-6 text-center text-xs uppercase tracking-[0.35em] text-primary/80">
           Xtream Codes Compatible
