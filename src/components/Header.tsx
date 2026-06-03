@@ -1,4 +1,5 @@
-import { Menu, Search, Tv2 } from "lucide-react";
+import { Menu, Search } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 interface Props {
   search: string;
@@ -16,10 +17,7 @@ export function Header({ search, onSearch, onToggleSidebar }: Props) {
       >
         <Menu className="h-5 w-5" />
       </button>
-      <div className="flex items-center gap-2">
-        <Tv2 className="h-6 w-6 text-primary" />
-        <span className="text-lg font-bold tracking-tight">FLIX<span className="text-primary">TV</span></span>
-      </div>
+      <Logo className="h-9 w-auto" />
       <div className="ml-auto flex-1 max-w-md relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input

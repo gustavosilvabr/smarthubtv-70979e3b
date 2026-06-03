@@ -31,26 +31,26 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.13 0.01 270);
+  --radius: 0.75rem;
+  --background: oklch(0.12 0.02 290);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.17 0.01 270);
+  --card: oklch(0.16 0.03 290);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.17 0.01 270);
+  --popover: oklch(0.16 0.03 290);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.62 0.24 27);
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.01 270);
+  --primary: oklch(0.62 0.24 300);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.22 0.03 290);
   --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.22 0.01 270);
-  --muted-foreground: oklch(0.7 0.02 270);
-  --accent: oklch(0.27 0.02 270);
+  --muted: oklch(0.22 0.03 290);
+  --muted-foreground: oklch(0.72 0.03 290);
+  --accent: oklch(0.28 0.05 295);
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.62 0.24 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.27 0.01 270);
-  --input: oklch(0.22 0.01 270);
-  --ring: oklch(0.62 0.24 27);
+  --border: oklch(0.27 0.04 295);
+  --input: oklch(0.22 0.03 290);
+  --ring: oklch(0.62 0.24 300);
 }
 
 .dark {
