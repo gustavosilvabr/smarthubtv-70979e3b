@@ -7,10 +7,22 @@ export interface IptvSettings {
 export const IPTV_SETTINGS_KEY = "flixtv:iptv-settings";
 
 export const DEFAULT_IPTV_SETTINGS: IptvSettings = {
-  server: "https://blckbr.shop",
-  username: "janio798",
-  password: "7338644862",
+  server: "",
+  username: "",
+  password: "",
 };
+
+export function hasStoredIptvSettings(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(IPTV_SETTINGS_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<IptvSettings>;
+    return Boolean(parsed?.server && parsed?.username && parsed?.password);
+  } catch {
+    return false;
+  }
+}
 
 export function normalizeServerUrl(value: string) {
   const trimmed = value.trim().replace(/\/+$/, "");
