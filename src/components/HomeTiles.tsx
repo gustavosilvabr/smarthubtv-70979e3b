@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Film, Heart, Radio, Settings, Tv } from "lucide-react";
+import { Film, Radio, Settings, Tv } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import type { Tab } from "./Sidebar";
 
 export type HomeTileTarget = Tab | "settings";
@@ -56,33 +57,17 @@ export function HomeTiles({ counts, onSelect }: Props) {
   const date = now ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_center,_#0b1a3a_0%,_#020617_70%)] text-foreground">
-      {/* Radial rays background */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "repeating-conic-gradient(from 0deg at 50% 50%, rgba(59,130,246,0.10) 0deg, transparent 8deg 16deg)",
-        }}
-      />
+    <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(126,34,206,0.25)_0%,_#0a0613_60%,_#050308_100%)] text-foreground">
+      {/* Purple ambience */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/20 blur-[160px]" />
+        <div className="absolute bottom-[-200px] left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-primary/15 blur-[160px]" />
+      </div>
 
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 py-8 min-h-screen">
         {/* Top bar */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="rounded-md bg-primary/20 p-2 ring-1 ring-primary/40">
-              <Tv className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight">
-                FLIX<span className="text-primary">TV</span>
-              </h1>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Smart Hub Play
-              </p>
-            </div>
-          </div>
+          <Logo className="h-12 w-auto drop-shadow-[0_0_24px_rgba(168,85,247,0.5)] md:h-14" />
 
           <div className="flex items-center gap-6">
             <div className="text-right">
@@ -151,8 +136,8 @@ export function HomeTiles({ counts, onSelect }: Props) {
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-1 text-xs text-muted-foreground sm:flex-row sm:justify-between">
-          <span>FlixTV · IPTV Player Premium</span>
-          <span>Powered by Smart Hub Play</span>
+          <span>Smart Hub Play TV · IPTV Player Premium</span>
+          <span>Powered by Smart Hub</span>
         </div>
       </div>
     </div>
