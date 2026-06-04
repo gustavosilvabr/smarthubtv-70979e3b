@@ -5,85 +5,157 @@ import { parseEpisode } from "@/utils/parseEpisode";
 
 const DEFAULT_SETTINGS = DEFAULT_IPTV_SETTINGS;
 
-interface LiveCategory {
-  category_id: string;
-  category_name: string;
-}
-
-interface LiveStream {
-  stream_id: string | number;
-  name: string;
-  stream_icon?: string;
-  category_id?: string;
-}
-
-interface VodCategory {
-  category_id: string;
-  category_name: string;
-}
-
-interface VodStream {
-  stream_id: string | number;
-  name: string;
-  stream_icon?: string;
-  category_id?: string;
-  container_extension?: string;
-}
-
-interface SeriesStream {
-  series_id: string | number;
-  name: string;
-  cover?: string;
-  category_id?: string;
-}
+interface LiveCategory { category_id: string; category_name: string }
+interface LiveStream { stream_id: string | number; name: string; stream_icon?: string; category_id?: string }
+interface VodCategory { category_id: string; category_name: string }
+interface VodStream { stream_id: string | number; name: string; stream_icon?: string; category_id?: string; container_extension?: string }
+interface SeriesStream { series_id: string | number; name: string; cover?: string; category_id?: string }
 
 export const Route = createFileRoute("/api/m3u")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        try {
-          const settings = getSettingsFromRequest(request);
-          const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
-          const [categoriesRes, streamsRes, vodCategoriesRes, vodStreamsRes, seriesRes, m3uRes] = await Promise.all([
-            xtreamFetch(settings, "get_live_categories"),
-            xtreamFetch(settings, "get_live_streams"),
-            xtreamFetch(settings, "get_vod_categories"),
-            xtreamFetch(settings, "get_vod_streams"),
-            xtreamFetch(settings, "get_series"),
-            fetch(m3uUrl, {
-              headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
-              redirect: "follow",
-            }),
-          ]);
+        const settings = getSettingsFromRequest(request);
 
-          if (!m3uRes.ok) {
-            return new Response(`Upstream error: ${m3uRes.status}`, { status: 502 });
-          }
+        const stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            const write = (s: string) => controller.enqueue(encoder.encode(s));
 
-          const [categories, streams, vodCategories, vodStreams, seriesStreams, m3uText] = await Promise.all([
-            categoriesRes.json() as Promise<LiveCategory[]>,
-            streamsRes.json() as Promise<LiveStream[]>,
-            vodCategoriesRes.json() as Promise<VodCategory[]>,
-            vodStreamsRes.json() as Promise<VodStream[]>,
-            seriesRes.json() as Promise<SeriesStream[]>,
-            m3uRes.text(),
-          ]);
+            try {
+              // LIVE
+              const [liveCatsRes, liveStreamsRes] = await Promise.all([
+                xtreamFetch(settings, "get_live_categories"),
+                xtreamFetch(settings, "get_live_streams"),
+              ]);
+              const liveCats = (await liveCatsRes.json()) as LiveCategory[];
+              const liveStreams = (await liveStreamsRes.json()) as LiveStream[];
+              const liveCatMap = new Map(liveCats.map((c) => [String(c.category_id), c.category_name]));
+              write("#EXTM3U\n");
+              for (const ch of liveStreams) {
+                if (!ch.stream_id) continue;
+                const urls = buildLiveStreamUrls(settings.server, settings.username, settings.password, ch.stream_id);
+                const name = escapeAttr(ch.name || `Canal ${ch.stream_id}`);
+                const logo = escapeAttr(ch.stream_icon || "");
+                const group = escapeAttr(liveCatMap.get(String(ch.category_id)) || "Canais ao vivo");
+                write(
+                  `#EXTINF:-1 tvg-id="${ch.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${ch.name}\n` +
+                  `#SMART-HUB:stream-id="${ch.stream_id}" fallback-url="${urls.ts}" type="live"\n` +
+                  `${urls.hls}\n`,
+                );
+              }
+              // free
+              (liveStreams as unknown as unknown[]).length = 0;
+              liveCatMap.clear();
 
-          const liveM3u = buildLiveM3U(settings, categories, streams);
-          const vodM3u = buildVodM3U(settings, vodCategories, vodStreams);
-          const seriesM3u = keepOnlySeries(enrichSeriesLogos(m3uText, seriesStreams));
-          const body = `${liveM3u}\n${vodM3u}\n${seriesM3u}`;
+              // VOD
+              const [vodCatsRes, vodStreamsRes] = await Promise.all([
+                xtreamFetch(settings, "get_vod_categories"),
+                xtreamFetch(settings, "get_vod_streams"),
+              ]);
+              const vodCats = (await vodCatsRes.json()) as VodCategory[];
+              const vodStreams = (await vodStreamsRes.json()) as VodStream[];
+              const vodCatMap = new Map(vodCats.map((c) => [String(c.category_id), c.category_name]));
+              write("\n");
+              for (const m of vodStreams) {
+                if (!m.stream_id) continue;
+                const ext = (m.container_extension || "mp4").replace(/^\./, "") || "mp4";
+                const name = escapeAttr(m.name || `Filme ${m.stream_id}`);
+                const logo = escapeAttr(m.stream_icon || "");
+                const group = escapeAttr(vodCatMap.get(String(m.category_id)) || "Filmes");
+                const url = `${settings.server}/movie/${encodeURIComponent(settings.username)}/${encodeURIComponent(settings.password)}/${m.stream_id}.${ext}`;
+                write(
+                  `#EXTINF:-1 tvg-id="movie-${m.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${m.name}\n` +
+                  `#SMART-HUB:stream-id="movie-${m.stream_id}" type="movie"\n` +
+                  `${url}\n`,
+                );
+              }
+              (vodStreams as unknown as unknown[]).length = 0;
+              vodCatMap.clear();
 
-          return new Response(body, {
-            status: 200,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-              "Cache-Control": "no-store",
-            },
-          });
-        } catch (e) {
-          return new Response(`Fetch failed: ${(e as Error).message}`, { status: 500 });
-        }
+              // SERIES — stream m3u text line by line, keep only /series/, enrich logos
+              const seriesRes = await xtreamFetch(settings, "get_series");
+              const seriesList = (await seriesRes.json()) as SeriesStream[];
+              const logoByName = new Map<string, string>();
+              for (const s of seriesList) {
+                if (s.name && s.cover) logoByName.set(normalizeName(s.name), s.cover);
+              }
+              (seriesList as unknown as unknown[]).length = 0;
+
+              const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
+              const m3uRes = await fetch(m3uUrl, {
+                headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
+                redirect: "follow",
+              });
+              if (!m3uRes.ok || !m3uRes.body) {
+                throw new Error(`Upstream m3u error: ${m3uRes.status}`);
+              }
+              write("\n");
+
+              const reader = m3uRes.body.getReader();
+              const decoder = new TextDecoder();
+              let buf = "";
+              let pendingExtinf: string | null = null;
+              let pendingExtras: string[] = [];
+
+              const flushIfSeries = (url: string) => {
+                if (!pendingExtinf) return;
+                if (/\/series\//i.test(url)) {
+                  write(pendingExtinf + "\n");
+                  for (const ex of pendingExtras) write(ex + "\n");
+                  write(url + "\n");
+                }
+                pendingExtinf = null;
+                pendingExtras = [];
+              };
+
+              const processLine = (rawLine: string) => {
+                const line = rawLine;
+                if (line.startsWith("#EXTM3U")) return;
+                if (line.startsWith("#EXTINF")) {
+                  pendingExtinf = enrichLogo(line, logoByName);
+                  pendingExtras = [];
+                  return;
+                }
+                if (line.startsWith("#")) {
+                  if (pendingExtinf) pendingExtras.push(line);
+                  return;
+                }
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                flushIfSeries(trimmed);
+              };
+
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                let idx: number;
+                while ((idx = buf.indexOf("\n")) >= 0) {
+                  const line = buf.slice(0, idx).replace(/\r$/, "");
+                  buf = buf.slice(idx + 1);
+                  processLine(line);
+                }
+              }
+              if (buf.length) processLine(buf.replace(/\r$/, ""));
+
+              controller.close();
+            } catch (e) {
+              try {
+                write(`\n# ERROR: ${(e as Error).message}\n`);
+              } catch {}
+              controller.error(e);
+            }
+          },
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-store",
+          },
+        });
       },
     },
   },
@@ -108,107 +180,16 @@ async function xtreamFetch(settings: typeof DEFAULT_SETTINGS, action: string) {
   return res;
 }
 
-function buildLiveM3U(settings: typeof DEFAULT_SETTINGS, categories: LiveCategory[], streams: LiveStream[]) {
-  const categoryNames = new Map(categories.map((c) => [String(c.category_id), c.category_name]));
-  const lines = ["#EXTM3U"];
-
-  for (const channel of streams) {
-    if (!channel.stream_id) continue;
-    const urls = buildLiveStreamUrls(
-      settings.server,
-      settings.username,
-      settings.password,
-      channel.stream_id,
-    );
-    const name = escapeAttr(channel.name || `Canal ${channel.stream_id}`);
-    const logo = escapeAttr(channel.stream_icon || "");
-    const group = escapeAttr(categoryNames.get(String(channel.category_id)) || "Canais ao vivo");
-
-    lines.push(
-      `#EXTINF:-1 tvg-id="${channel.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${channel.name}`,
-      `#SMART-HUB:stream-id="${channel.stream_id}" fallback-url="${urls.ts}" type="live"`,
-      urls.hls,
-    );
+function enrichLogo(line: string, logoByName: Map<string, string>) {
+  const commaIdx = line.lastIndexOf(",");
+  const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
+  const showName = parseEpisode(fullName).showName;
+  const logo = logoByName.get(normalizeName(showName));
+  if (!logo) return line;
+  if (/tvg-logo="[^"]*"/i.test(line)) {
+    return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
   }
-
-  return lines.join("\n");
-}
-
-function buildVodM3U(settings: typeof DEFAULT_SETTINGS, categories: VodCategory[], streams: VodStream[]) {
-  const categoryNames = new Map(categories.map((c) => [String(c.category_id), c.category_name]));
-  const lines: string[] = [];
-
-  for (const movie of streams) {
-    if (!movie.stream_id) continue;
-    const ext = (movie.container_extension || "mp4").replace(/^\./, "") || "mp4";
-    const name = escapeAttr(movie.name || `Filme ${movie.stream_id}`);
-    const logo = escapeAttr(movie.stream_icon || "");
-    const group = escapeAttr(categoryNames.get(String(movie.category_id)) || "Filmes");
-    const url = `${settings.server}/movie/${encodeURIComponent(settings.username)}/${encodeURIComponent(settings.password)}/${movie.stream_id}.${ext}`;
-
-    lines.push(
-      `#EXTINF:-1 tvg-id="movie-${movie.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${movie.name}`,
-      `#SMART-HUB:stream-id="movie-${movie.stream_id}" type="movie"`,
-      url,
-    );
-  }
-
-  return lines.join("\n");
-}
-
-function stripHeader(text: string) {
-  return text.replace(/^#EXTM3U[^\n]*(\r?\n)?/i, "").trimStart();
-}
-
-function keepOnlySeries(text: string) {
-  const lines = stripHeader(text).split(/\r?\n/);
-  const kept: string[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.startsWith("#EXTINF")) continue;
-
-    const entry = [line];
-    let url = "";
-    let j = i + 1;
-    while (j < lines.length) {
-      const next = lines[j].trim();
-      if (next && !next.startsWith("#")) {
-        url = next;
-        entry.push(lines[j]);
-        break;
-      }
-      if (next) entry.push(lines[j]);
-      j++;
-    }
-
-    if (url && /\/series\//i.test(url)) kept.push(...entry);
-    i = j;
-  }
-
-  return kept.join("\n");
-}
-
-function enrichSeriesLogos(text: string, series: SeriesStream[]) {
-  const logoByName = new Map(
-    series
-      .filter((show) => show.name && show.cover)
-      .map((show) => [normalizeName(show.name), show.cover || ""]),
-  );
-
-  return text.split(/\r?\n/).map((line) => {
-    if (!line.startsWith("#EXTINF")) return line;
-    const commaIdx = line.lastIndexOf(",");
-    const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
-    const showName = parseEpisode(fullName).showName;
-    const logo = logoByName.get(normalizeName(showName));
-    if (!logo) return line;
-
-    if (/tvg-logo="[^"]*"/i.test(line)) {
-      return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
-    }
-    return line.replace("#EXTINF", `#EXTINF tvg-logo="${escapeAttr(logo)}"`);
-  }).join("\n");
+  return line.replace("#EXTINF", `#EXTINF tvg-logo="${escapeAttr(logo)}"`);
 }
 
 function normalizeName(value: string) {
