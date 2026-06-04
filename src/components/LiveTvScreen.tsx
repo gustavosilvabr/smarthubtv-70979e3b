@@ -360,6 +360,14 @@ export function LiveTvScreen({
               </div>
             </div>
           )}
+
+          {/* EPG grid for the selected channel */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <EpgPanel
+              streamId={selected?.streamId}
+              settingsQuery={settingsQuery}
+            />
+          </div>
         </section>
       </div>
     </div>
