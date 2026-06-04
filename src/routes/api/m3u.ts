@@ -80,6 +80,10 @@ export const Route = createFileRoute("/api/m3u")({
               for (const s of seriesList) {
                 if (s.name && s.cover) logoByName.set(normalizeName(s.name), s.cover);
               }
+              // Sorted entries (longest normalized name first) for prefix fallback matching
+              const logoEntries: Array<[string, string]> = [...logoByName.entries()].sort(
+                (a, b) => b[0].length - a[0].length,
+              );
               (seriesList as unknown as unknown[]).length = 0;
 
               const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
@@ -113,7 +117,7 @@ export const Route = createFileRoute("/api/m3u")({
                 const line = rawLine;
                 if (line.startsWith("#EXTM3U")) return;
                 if (line.startsWith("#EXTINF")) {
-                  pendingExtinf = enrichLogo(line, logoByName);
+                  pendingExtinf = enrichLogo(line, logoByName, logoEntries);
                   pendingExtras = [];
                   return;
                 }
@@ -180,11 +184,41 @@ async function xtreamFetch(settings: typeof DEFAULT_SETTINGS, action: string) {
   return res;
 }
 
-function enrichLogo(line: string, logoByName: Map<string, string>) {
+function enrichLogo(
+  line: string,
+  logoByName: Map<string, string>,
+  logoEntries: Array<[string, string]>,
+) {
   const commaIdx = line.lastIndexOf(",");
   const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
   const showName = parseEpisode(fullName).showName;
-  const logo = logoByName.get(normalizeName(showName));
+
+  // 1) exact match on parsed showName
+  const normShow = normalizeName(showName);
+  let logo = normShow ? logoByName.get(normShow) : undefined;
+
+  // 2) exact match on full title (some episodes have no S/E pattern)
+  if (!logo) {
+    const normFull = normalizeName(fullName);
+    if (normFull) logo = logoByName.get(normFull);
+  }
+
+  // 3) longest-prefix match: find the series whose normalized name is a
+  // prefix of the episode's normalized full title (handles "Show Name S01E01",
+  // "Show Name - Temporada 1", "Show Name (2024) ...", etc.)
+  if (!logo) {
+    const normFull = normalizeName(fullName);
+    if (normFull) {
+      for (const [key, value] of logoEntries) {
+        if (!key) continue;
+        if (normFull === key || normFull.startsWith(key + " ")) {
+          logo = value;
+          break;
+        }
+      }
+    }
+  }
+
   if (!logo) return line;
   if (/tvg-logo="[^"]*"/i.test(line)) {
     return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
