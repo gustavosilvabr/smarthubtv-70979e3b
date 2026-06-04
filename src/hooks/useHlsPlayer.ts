@@ -25,7 +25,7 @@ export interface UseHlsPlayerResult {
  * Mirrors VideoPlayer's loading logic but as a reusable hook for inline players.
  */
 export function useHlsPlayer(
-  videoRef: React.RefObject<HTMLVideoElement>,
+  videoRef: React.RefObject<HTMLVideoElement | null>,
   item: M3UItem | null,
 ): UseHlsPlayerResult {
   const hlsRef = useRef<any>(null);
