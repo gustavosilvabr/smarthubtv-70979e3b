@@ -73,75 +73,34 @@ export const Route = createFileRoute("/api/m3u")({
               (vodStreams as unknown as unknown[]).length = 0;
               vodCatMap.clear();
 
-              // SERIES — stream m3u text line by line, keep only /series/, enrich logos
-              const seriesRes = await xtreamFetch(settings, "get_series");
+              // SERIES — emit one entry per series directly from Xtream API.
+              // Episodes are fetched on-demand by /api/series-info, which keeps
+              // this endpoint fast and guarantees every series shows up.
+              const [seriesCatsRes, seriesRes] = await Promise.all([
+                xtreamFetch(settings, "get_series_categories"),
+                xtreamFetch(settings, "get_series"),
+              ]);
+              const seriesCats = (await seriesCatsRes.json()) as VodCategory[];
               const seriesList = (await seriesRes.json()) as SeriesStream[];
-              const logoByName = new Map<string, string>();
-              for (const s of seriesList) {
-                if (s.name && s.cover) logoByName.set(normalizeName(s.name), s.cover);
-              }
-              // Sorted entries (longest normalized name first) for prefix fallback matching
-              const logoEntries: Array<[string, string]> = [...logoByName.entries()].sort(
-                (a, b) => b[0].length - a[0].length,
+              const seriesCatMap = new Map(
+                seriesCats.map((c) => [String(c.category_id), c.category_name]),
               );
-              (seriesList as unknown as unknown[]).length = 0;
-
-              const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
-              const m3uRes = await fetch(m3uUrl, {
-                headers: { "User-Agent": "VLC/3.0.20 LibVLC/3.0.20" },
-                redirect: "follow",
-              });
-              if (!m3uRes.ok || !m3uRes.body) {
-                throw new Error(`Upstream m3u error: ${m3uRes.status}`);
-              }
               write("\n");
-
-              const reader = m3uRes.body.getReader();
-              const decoder = new TextDecoder();
-              let buf = "";
-              let pendingExtinf: string | null = null;
-              let pendingExtras: string[] = [];
-
-              const flushIfSeries = (url: string) => {
-                if (!pendingExtinf) return;
-                if (/\/series\//i.test(url)) {
-                  write(pendingExtinf + "\n");
-                  for (const ex of pendingExtras) write(ex + "\n");
-                  write(url + "\n");
-                }
-                pendingExtinf = null;
-                pendingExtras = [];
-              };
-
-              const processLine = (rawLine: string) => {
-                const line = rawLine;
-                if (line.startsWith("#EXTM3U")) return;
-                if (line.startsWith("#EXTINF")) {
-                  pendingExtinf = enrichLogo(line, logoByName, logoEntries);
-                  pendingExtras = [];
-                  return;
-                }
-                if (line.startsWith("#")) {
-                  if (pendingExtinf) pendingExtras.push(line);
-                  return;
-                }
-                const trimmed = line.trim();
-                if (!trimmed) return;
-                flushIfSeries(trimmed);
-              };
-
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buf += decoder.decode(value, { stream: true });
-                let idx: number;
-                while ((idx = buf.indexOf("\n")) >= 0) {
-                  const line = buf.slice(0, idx).replace(/\r$/, "");
-                  buf = buf.slice(idx + 1);
-                  processLine(line);
-                }
+              for (const s of seriesList) {
+                if (!s.series_id) continue;
+                const name = escapeAttr(s.name || `Série ${s.series_id}`);
+                const logo = escapeAttr(s.cover || "");
+                const group = escapeAttr(
+                  seriesCatMap.get(String(s.category_id)) || "Séries",
+                );
+                write(
+                  `#EXTINF:-1 tvg-id="series-${s.series_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${s.name}\n` +
+                    `#SMART-HUB:stream-id="series-${s.series_id}" type="series"\n` +
+                    `xtream-series://${s.series_id}\n`,
+                );
               }
-              if (buf.length) processLine(buf.replace(/\r$/, ""));
+              (seriesList as unknown as unknown[]).length = 0;
+              seriesCatMap.clear();
 
               controller.close();
             } catch (e) {
