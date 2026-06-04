@@ -117,7 +117,7 @@ export const Route = createFileRoute("/api/m3u")({
                 const line = rawLine;
                 if (line.startsWith("#EXTM3U")) return;
                 if (line.startsWith("#EXTINF")) {
-                  pendingExtinf = enrichLogo(line, logoByName);
+                  pendingExtinf = enrichLogo(line, logoByName, logoEntries);
                   pendingExtras = [];
                   return;
                 }
