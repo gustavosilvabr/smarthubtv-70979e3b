@@ -10,6 +10,7 @@ import { HomeTiles, type HomeTileTarget } from "@/components/HomeTiles";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { LoginScreen } from "@/components/LoginScreen";
 import { LoadingScreen, type LoadingStage } from "@/components/LoadingScreen";
+import { LiveTvScreen } from "@/components/LiveTvScreen";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import {
@@ -231,6 +232,20 @@ function Dashboard() {
     );
   }
 
+  // ---------- LIVE TV (dedicated 3-column screen) ----------
+  if (view === "live") {
+    const liveItems = items.filter((i) => i.type === "live");
+    return (
+      <LiveTvScreen
+        items={liveItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFav}
+        onBack={goHome}
+        onOpenSettings={() => setView("settings")}
+      />
+    );
+  }
+
   // ---------- BROWSE ----------
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -257,7 +272,6 @@ function Dashboard() {
 
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">
-              {view === "live" && "Canais ao vivo"}
               {view === "movie" && "Filmes"}
               {view === "series" && "Séries"}
               {view === "favorites" && "Meus favoritos"}
