@@ -96,10 +96,15 @@ export function SeriesScreen({
   }, [items, category, favorites, recents]);
 
   const visibleSeries = useMemo(() => {
-    const q = chanQuery.trim().toLowerCase();
+    const q = chanQueryDebounced.trim().toLowerCase();
     if (!q) return seriesForCategory;
     return seriesForCategory.filter((i) => i.name.toLowerCase().includes(q));
-  }, [seriesForCategory, chanQuery]);
+  }, [seriesForCategory, chanQueryDebounced]);
+
+  const renderedSeries = useMemo(
+    () => visibleSeries.slice(0, visibleCount),
+    [visibleSeries, visibleCount],
+  );
 
   useEffect(() => {
     if (!visibleSeries.length) return;
