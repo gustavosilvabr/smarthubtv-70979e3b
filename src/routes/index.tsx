@@ -11,6 +11,8 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { LoginScreen } from "@/components/LoginScreen";
 import { LoadingScreen, type LoadingStage } from "@/components/LoadingScreen";
 import { LiveTvScreen } from "@/components/LiveTvScreen";
+import { MoviesScreen } from "@/components/MoviesScreen";
+import { SeriesScreen } from "@/components/SeriesScreen";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import {
@@ -242,9 +244,40 @@ function Dashboard() {
         onToggleFavorite={toggleFav}
         onBack={goHome}
         onOpenSettings={() => setView("settings")}
+        settingsQuery={settingsToQuery(settings)}
       />
     );
   }
+
+  // ---------- MOVIES (dedicated 3-column screen) ----------
+  if (view === "movie") {
+    const movieItems = items.filter((i) => i.type === "movie");
+    return (
+      <MoviesScreen
+        items={movieItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFav}
+        onBack={goHome}
+        onOpenSettings={() => setView("settings")}
+      />
+    );
+  }
+
+  // ---------- SERIES (dedicated 3-column screen) ----------
+  if (view === "series") {
+    const seriesItems = items.filter((i) => i.type === "series");
+    return (
+      <SeriesScreen
+        items={seriesItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFav}
+        onBack={goHome}
+        onOpenSettings={() => setView("settings")}
+        settingsQuery={settingsToQuery(settings)}
+      />
+    );
+  }
+
 
   // ---------- BROWSE ----------
   return (
