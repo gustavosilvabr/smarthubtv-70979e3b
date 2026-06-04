@@ -183,11 +183,14 @@ export function SeriesScreen({
     } catch (e) { console.error("[fullscreen]", e); }
   };
 
-  const counts = {
-    all: items.length,
-    recent: recents.filter((id) => items.some((i) => i.id === id)).length,
-    favorites: items.filter((i) => favorites.has(i.id)).length,
-  };
+  const counts = useMemo(() => {
+    const ids = new Set(items.map((i) => i.id));
+    return {
+      all: items.length,
+      recent: recents.reduce((n, id) => (ids.has(id) ? n + 1 : n), 0),
+      favorites: items.reduce((n, i) => (favorites.has(i.id) ? n + 1 : n), 0),
+    };
+  }, [items, recents, favorites]);
 
   const posterUrl = info?.cover
     ? getDisplayImageUrl(info.cover)
