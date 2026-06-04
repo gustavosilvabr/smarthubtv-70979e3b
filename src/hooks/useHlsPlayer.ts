@@ -70,7 +70,7 @@ export function useHlsPlayer(
       timeoutRef.current = setTimeout(() => {
         if (disposed) return;
         onTimeout();
-      }, LOAD_TIMEOUT_MS);
+      }, isLive ? LOAD_TIMEOUT_LIVE_MS : LOAD_TIMEOUT_VOD_MS);
     };
 
     const resetVideo = () => {
