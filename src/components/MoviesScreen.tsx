@@ -90,10 +90,15 @@ export function MoviesScreen({
   }, [items, category, favorites, recents]);
 
   const visibleMovies = useMemo(() => {
-    const q = chanQuery.trim().toLowerCase();
+    const q = chanQueryDebounced.trim().toLowerCase();
     if (!q) return moviesForCategory;
     return moviesForCategory.filter((i) => i.name.toLowerCase().includes(q));
-  }, [moviesForCategory, chanQuery]);
+  }, [moviesForCategory, chanQueryDebounced]);
+
+  const renderedMovies = useMemo(
+    () => visibleMovies.slice(0, visibleCount),
+    [visibleMovies, visibleCount],
+  );
 
   useEffect(() => {
     if (!visibleMovies.length) return;
