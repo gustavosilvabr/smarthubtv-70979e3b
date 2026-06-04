@@ -10,6 +10,7 @@ import { HomeTiles, type HomeTileTarget } from "@/components/HomeTiles";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { LoginScreen } from "@/components/LoginScreen";
 import { LoadingScreen, type LoadingStage } from "@/components/LoadingScreen";
+import { LiveTvScreen } from "@/components/LiveTvScreen";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import {
