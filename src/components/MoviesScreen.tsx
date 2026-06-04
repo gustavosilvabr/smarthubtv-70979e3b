@@ -40,10 +40,12 @@ export function MoviesScreen({
 }: Props) {
   const [catQuery, setCatQuery] = useState("");
   const [chanQuery, setChanQuery] = useState("");
+  const [chanQueryDebounced, setChanQueryDebounced] = useState("");
   const [category, setCategory] = useState<SpecialCat | string>("all");
   const [selected, setSelected] = useState<M3UItem | null>(null);
   const [recents, setRecents] = useState<string[]>([]);
   const [playing, setPlaying] = useState<M3UItem | null>(null);
+  const [visibleCount, setVisibleCount] = useState(200);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -53,6 +55,15 @@ export function MoviesScreen({
       if (raw) setRecents(JSON.parse(raw));
     } catch {}
   }, []);
+
+  // Debounce search to keep typing snappy on huge lists
+  useEffect(() => {
+    const t = setTimeout(() => setChanQueryDebounced(chanQuery), 180);
+    return () => clearTimeout(t);
+  }, [chanQuery]);
+
+  // Reset visible window when filter changes
+  useEffect(() => { setVisibleCount(200); }, [category, chanQueryDebounced]);
 
   const realCats = useMemo(() => {
     const map = new Map<string, number>();
