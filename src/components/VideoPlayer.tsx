@@ -236,13 +236,13 @@ export function VideoPlayer({ item, onClose }: Props) {
   if (!item) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in">
-      <div className="relative w-full max-w-6xl">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg md:text-xl font-semibold text-foreground line-clamp-1">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 animate-in fade-in">
+      <div className="relative w-full max-w-2xl">
+        <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
+          <h2 className="text-sm sm:text-base md:text-lg font-semibold text-foreground line-clamp-1">
             {item.name}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2 shrink-0">
             <button
               onClick={async () => {
                 const v = videoRef.current;
@@ -258,47 +258,47 @@ export function VideoPlayer({ item, onClose }: Props) {
                   console.error("[pip]", e);
                 }
               }}
-              className="rounded-full bg-secondary p-2 hover:bg-accent transition"
+              className="rounded-full bg-secondary p-1.5 sm:p-2 hover:bg-accent transition"
               aria-label="Picture in Picture"
               title="Picture in Picture"
             >
-              <PictureInPicture2 className="h-5 w-5" />
+              <PictureInPicture2 className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
             <button
               onClick={onClose}
-              className="rounded-full bg-secondary p-2 hover:bg-accent transition"
+              className="rounded-full bg-secondary p-1.5 sm:p-2 hover:bg-accent transition"
               aria-label="Fechar"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
         <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
-          <video ref={videoRef} controls autoPlay playsInline className="h-full w-full" />
+          <video ref={videoRef} controls autoPlay playsInline controlsList="nodownload" className="h-full w-full" />
           {loading && (
             <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary" />
                 Carregando canal...
               </div>
             </div>
           )}
           {error && (
-            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-6 text-center text-foreground">
+            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-3 sm:p-6 text-center text-foreground">
               <div className="max-w-lg">
-                <p className="text-sm md:text-base">{error}</p>
+                <p className="text-xs sm:text-sm md:text-base">{error}</p>
                 <button
                   onClick={() => setAttempt((n) => n + 1)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Tentar novamente
                 </button>
               </div>
             </div>
           )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{item.group}</p>
+        <p className="mt-1.5 sm:mt-2 text-xs text-muted-foreground line-clamp-1">{item.group}</p>
       </div>
     </div>
   );

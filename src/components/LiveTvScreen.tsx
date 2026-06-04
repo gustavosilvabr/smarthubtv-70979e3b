@@ -132,7 +132,7 @@ export function LiveTvScreen({
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
       {/* Top bar */}
-      <header className="flex items-center gap-3 border-b border-white/5 bg-black/40 px-4 py-3 backdrop-blur">
+      <header className="flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
         <button
           onClick={onBack}
           aria-label="Voltar"
@@ -147,22 +147,28 @@ export function LiveTvScreen({
             value={chanQuery}
             onChange={(e) => setChanQuery(e.target.value)}
             placeholder="Search"
-            className="h-11 w-full rounded-full border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
+            className="h-10 sm:h-11 w-full rounded-full border border-white/10 bg-white/5 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <TopIconButton label="Player" icon={PlayCircle} />
-          <TopIconButton label="Categorias" icon={LayoutGrid} />
-          <TopIconButton label="Opções" icon={MoreVertical} />
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="hidden sm:block">
+            <TopIconButton label="Player" icon={PlayCircle} />
+          </div>
+          <div className="hidden md:block">
+            <TopIconButton label="Categorias" icon={LayoutGrid} />
+          </div>
+          <div className="hidden lg:block">
+            <TopIconButton label="Opções" icon={MoreVertical} />
+          </div>
           <TopIconButton label="Configurações" icon={Settings} onClick={onOpenSettings} />
         </div>
       </header>
 
-      {/* Main 3-column layout */}
-      <div className="grid min-h-0 flex-1 gap-3 p-3 md:grid-cols-[260px_320px_minmax(0,1fr)] md:gap-4 md:p-4">
+      {/* Main layout - responsive */}
+      <div className="grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-1 sm:grid-cols-[180px_220px_minmax(0,1fr)] md:grid-cols-[260px_320px_minmax(0,1fr)] auto-rows-max md:auto-rows-auto">
         {/* Left: categories */}
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto" style={{ maxHeight: '180px' }}>
           <div className="border-b border-white/5 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -216,14 +222,14 @@ export function LiveTvScreen({
         </aside>
 
         {/* Middle: channel list */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
-          <div ref={channelListRef} className="flex-1 overflow-y-auto p-2">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 sm:col-span-auto row-start-3 sm:row-start-auto md:row-start-auto" style={{ maxHeight: '300px' }}>
+          <div className="flex-1 overflow-y-auto p-2">
             {visibleChannels.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">
                 Nenhum canal encontrado.
               </div>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-1 grid grid-cols-1 sm:grid-cols-1">
                 {visibleChannels.map((ch, idx) => {
                   const active = selected?.id === ch.id;
                   return (
@@ -232,7 +238,7 @@ export function LiveTvScreen({
                         onClick={() => selectChannel(ch)}
                         onDoubleClick={goFullscreen}
                         className={[
-                          "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
+                          "group flex w-full items-center gap-2 rounded-xl border px-2 sm:px-3 py-2 text-left transition focus:outline-none text-sm",
                           active
                             ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
                             : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30 focus-visible:border-amber-400/50",
@@ -240,7 +246,7 @@ export function LiveTvScreen({
                       >
                         <span
                           className={[
-                            "w-8 shrink-0 text-right text-sm font-bold tabular-nums",
+                            "w-6 shrink-0 text-right text-xs font-bold tabular-nums",
                             active ? "text-amber-300" : "text-white/40",
                           ].join(" ")}
                         >
@@ -248,7 +254,7 @@ export function LiveTvScreen({
                         </span>
                         <span
                           className={[
-                            "grid h-9 w-9 shrink-0 place-items-center rounded-lg ring-1 ring-white/10",
+                            "grid h-7 w-7 shrink-0 place-items-center rounded-lg ring-1 ring-white/10 text-xs",
                             active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70",
                           ].join(" ")}
                         >
@@ -256,25 +262,25 @@ export function LiveTvScreen({
                             <img
                               src={ch.logo}
                               alt=""
-                              className="h-7 w-7 rounded object-contain"
+                              className="h-6 w-6 rounded object-contain"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = "none";
                               }}
                             />
                           ) : (
-                            <Tv className="h-4 w-4" />
+                            <Tv className="h-3.5 w-3.5" />
                           )}
                         </span>
                         <span
                           className={[
-                            "min-w-0 flex-1 truncate text-sm font-medium",
+                            "min-w-0 flex-1 truncate text-xs sm:text-sm font-medium",
                             active ? "text-amber-300" : "text-white/90",
                           ].join(" ")}
                         >
                           {ch.name}
                         </span>
                         {favorites.has(ch.id) && (
-                          <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />
+                          <Heart className="h-3 w-3 shrink-0 fill-amber-300 text-amber-300" />
                         )}
                       </button>
                     </li>
@@ -286,29 +292,31 @@ export function LiveTvScreen({
         </section>
 
         {/* Right: player */}
-        <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-2 sm:gap-3 overflow-hidden order-2 col-span-1 sm:col-span-auto row-start-1 sm:row-start-auto">
           <div
             ref={playerWrapRef}
             onClick={goFullscreen}
-            className="group relative aspect-video w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            style={{ aspectRatio: '16/9', maxHeight: '120px' }}
           >
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              controls={false}
+              controls={true}
+              controlsList="nodownload"
               className="h-full w-full bg-black"
             />
 
             {/* Fullscreen hint icon */}
-            <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 p-2 opacity-0 ring-1 ring-white/10 transition group-hover:opacity-100">
-              <Maximize2 className="h-4 w-4 text-white" />
+            <div className="pointer-events-none absolute right-2 top-2 sm:right-3 sm:top-3 rounded-full bg-black/60 p-1.5 sm:p-2 opacity-0 ring-1 ring-white/10 transition group-hover:opacity-100">
+              <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
             </div>
 
             {selected && loading && (
               <div className="absolute inset-0 grid place-items-center bg-black/70 text-white">
-                <div className="flex flex-col items-center gap-2 text-sm">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-300" />
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-300" />
                   Carregando canal...
                 </div>
               </div>
@@ -340,15 +348,15 @@ export function LiveTvScreen({
 
           {/* Below player: title + actions */}
           {selected && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-4 py-3 backdrop-blur">
+            <div className="flex items-center justify-between gap-2 sm:gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-3 sm:px-4 py-2 sm:py-3 backdrop-blur">
               <div className="min-w-0">
-                <div className="text-lg font-bold text-amber-300">
+                <div className="text-sm sm:text-base font-bold text-amber-300">
                   {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)}.{" "}
                   <span className="text-white">{selected.name}</span>
                 </div>
                 <div className="truncate text-xs text-white/50">{selected.group}</div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <ActionButton
                   active={favorites.has(selected.id)}
                   onClick={() => onToggleFavorite(selected.id)}
@@ -362,7 +370,7 @@ export function LiveTvScreen({
           )}
 
           {/* EPG grid for the selected channel */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto row-start-4 col-span-1 sm:col-span-auto sm:row-start-auto md:row-start-auto hidden sm:block" style={{ maxHeight: '200px' }}>
             <EpgPanel
               streamId={selected?.streamId}
               settingsQuery={settingsQuery}

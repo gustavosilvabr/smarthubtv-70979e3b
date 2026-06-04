@@ -200,25 +200,29 @@ export function SeriesScreen({
 
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
-      <header className="flex items-center gap-3 border-b border-white/5 bg-black/40 px-4 py-3 backdrop-blur">
-        <button onClick={onBack} aria-label="Voltar" className="grid h-11 w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10">
-          <ChevronLeft className="h-5 w-5" />
+      <header className="flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
+        <button onClick={onBack} aria-label="Voltar" className="grid h-10 sm:h-11 w-10 sm:w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10">
+          <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <div className="relative mx-auto w-full max-w-2xl">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
+          <Search className="pointer-events-none absolute left-3 sm:left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
           <input value={chanQuery} onChange={(e) => setChanQuery(e.target.value)} placeholder="Search"
-            className="h-11 w-full rounded-full border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20" />
+            className="h-10 sm:h-11 w-full rounded-full border border-white/10 bg-white/5 pl-9 sm:pl-11 pr-4 text-xs sm:text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20" />
         </div>
-        <div className="flex items-center gap-2">
-          <TopIcon icon={LayoutGrid} label="Categorias" />
-          <TopIcon icon={MoreVertical} label="Opções" />
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="hidden md:block">
+            <TopIcon icon={LayoutGrid} label="Categorias" />
+          </div>
+          <div className="hidden lg:block">
+            <TopIcon icon={MoreVertical} label="Opções" />
+          </div>
           <TopIcon icon={Settings} label="Configurações" onClick={onOpenSettings} />
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-3 p-3 md:grid-cols-[260px_320px_minmax(0,1fr)] md:gap-4 md:p-4">
+      <div className="grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-2 sm:grid-cols-[180px_220px_minmax(0,1fr)] md:grid-cols-[260px_320px_minmax(0,1fr)] auto-rows-max md:auto-rows-auto">
         {/* Categories */}
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-3 col-start-1 col-span-1 sm:row-start-auto sm:col-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto" style={{ maxHeight: '180px' }}>
           <div className="border-b border-white/5 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -239,7 +243,7 @@ export function SeriesScreen({
         </aside>
 
         {/* Series list */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-start-2 col-span-1 row-start-3 sm:row-start-auto sm:col-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto" style={{ maxHeight: '300px' }}>
           <div className="flex-1 overflow-y-auto p-2">
             {visibleSeries.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">Nenhuma série encontrada.</div>
@@ -269,7 +273,7 @@ export function SeriesScreen({
                 {renderedSeries.length < visibleSeries.length && (
                   <button
                     onClick={() => setVisibleCount((c) => c + 300)}
-                    className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
                   >
                     Carregar mais ({visibleSeries.length - renderedSeries.length} restantes)
                   </button>
@@ -280,18 +284,19 @@ export function SeriesScreen({
         </section>
 
         {/* Right: player + episodes */}
-        <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-2 sm:gap-3 overflow-hidden order-2 col-span-2 row-start-1 sm:col-span-auto sm:row-start-auto">
           <div ref={playerWrapRef} onClick={() => playing && goFullscreen()}
-            className="group relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+            className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            style={{ aspectRatio: '16/9', maxHeight: '120px' }}>
             {playing ? (
-              <video ref={videoRef} autoPlay playsInline controls={false} className="h-full w-full bg-black" />
+              <video ref={videoRef} autoPlay playsInline controls={true} controlsList="nodownload" className="h-full w-full bg-black" />
             ) : posterUrl ? (
-              <img src={posterUrl} alt={selected?.name || ""} className="h-full w-full object-cover opacity-70" />
+              <img src={posterUrl} alt={selected?.name || ""} className="h-full w-full object-cover" />
             ) : (
               <div className="absolute inset-0 grid place-items-center text-white/40"><Tv className="h-16 w-16" strokeWidth={1.2} /></div>
             )}
             {!playing && selected && (
-              <div className="pointer-events-none absolute inset-0 grid place-items-end bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4">
+              <div className="pointer-events-none absolute inset-0 grid place-items-end p-4">
                 <div className="pointer-events-auto max-w-xl">
                   <div className="text-2xl font-bold text-white drop-shadow">{info?.name || selected.name}</div>
                   {info?.genre && <div className="mt-1 text-xs text-white/70">{info.genre}</div>}
@@ -301,8 +306,8 @@ export function SeriesScreen({
             )}
             {playing && loading && (
               <div className="absolute inset-0 grid place-items-center bg-black/70 text-white">
-                <div className="flex flex-col items-center gap-2 text-sm">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-300" /> Carregando episódio...
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-300" /> Carregando episódio...
                 </div>
               </div>
             )}
@@ -320,14 +325,14 @@ export function SeriesScreen({
 
           {/* Series header / actions */}
           {selected && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-4 py-3 backdrop-blur">
+            <div className="flex items-center justify-between gap-2 sm:gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-3 sm:px-4 py-2 sm:py-3 backdrop-blur">
               <div className="min-w-0">
-                <div className="truncate text-base font-bold text-white">{info?.name || selected.name}</div>
+                <div className="truncate text-sm sm:text-base font-bold text-white">{info?.name || selected.name}</div>
                 <div className="truncate text-xs text-white/50">
                   {info ? `${info.seasons.length} temporada${info.seasons.length === 1 ? "" : "s"} · ${info.episodes.length} episódios` : selected.group}
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <Action active={favorites.has(selected.id)} onClick={() => onToggleFavorite(selected.id)} icon={Heart} label="Favorite" />
                 {playing && (
                   <Action onClick={() => setPlaying(null)} icon={ArrowLeft} label="Voltar" />
@@ -338,7 +343,7 @@ export function SeriesScreen({
           )}
 
           {/* Episodes panel */}
-          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-4 col-span-2 sm:col-span-auto sm:row-start-auto md:row-start-auto" style={{ maxHeight: '200px' }}>
             {loadingInfo ? (
               <div className="grid h-full place-items-center text-white/40">
                 <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
@@ -347,37 +352,37 @@ export function SeriesScreen({
               <div className="grid h-full place-items-center px-6 text-center text-xs text-white/50">{infoError}</div>
             ) : info && info.seasons.length > 0 ? (
               <div className="flex h-full flex-col">
-                <div className="flex shrink-0 gap-2 overflow-x-auto border-b border-white/5 p-2">
+                <div className="flex shrink-0 gap-1.5 sm:gap-2 overflow-x-auto border-b border-white/5 p-1.5 sm:p-2">
                   {info.seasons.map((s) => (
                     <button key={s} onClick={() => setSeason(s)} className={[
-                      "shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition",
+                      "shrink-0 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold uppercase tracking-wider transition",
                       s === season ? "bg-amber-400 text-black" : "bg-white/5 text-white/80 hover:bg-white/10",
                     ].join(" ")}>
-                      Temporada {s}
+                      T{s}
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 overflow-y-auto p-2">
+                <div className="flex-1 overflow-y-auto p-1.5 sm:p-2">
                   {episodesForSeason.length === 0 ? (
                     <p className="px-3 py-4 text-center text-xs text-white/40">Nenhum episódio.</p>
                   ) : (
-                    <ul className="space-y-1.5">
+                    <ul className="space-y-1">
                       {episodesForSeason.map((ep) => {
                         const isPlaying = playing?.url === ep.url;
                         return (
                           <li key={ep.id}>
                             <button onClick={() => playEpisode(ep)} className={[
-                              "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition",
+                              "flex w-full items-center gap-2 sm:gap-3 rounded-xl border px-2 sm:px-3 py-2 text-left transition text-xs sm:text-sm",
                               isPlaying
                                 ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
                                 : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
                             ].join(" ")}>
-                              <span className={["grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums", isPlaying ? "bg-amber-400 text-black" : "bg-white/10 text-white/80"].join(" ")}>{ep.episode}</span>
+                              <span className={["grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums", isPlaying ? "bg-amber-400 text-black" : "bg-white/10 text-white/80"].join(" ")}>{ep.episode}</span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium text-white/90">{ep.title}</span>
-                                <span className="block text-[11px] text-white/40">T{ep.season} · E{ep.episode}{ep.duration ? ` · ${ep.duration}` : ""}</span>
+                                <span className="block truncate font-medium text-white/90">{ep.title}</span>
+                                <span className="block text-[10px] text-white/40">T{ep.season} · E{ep.episode}{ep.duration ? ` · ${ep.duration}` : ""}</span>
                               </span>
-                              <PlayCircle className={`h-5 w-5 shrink-0 ${isPlaying ? "text-amber-300" : "text-white/40"}`} />
+                              <PlayCircle className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${isPlaying ? "text-amber-300" : "text-white/40"}`} />
                             </button>
                           </li>
                         );

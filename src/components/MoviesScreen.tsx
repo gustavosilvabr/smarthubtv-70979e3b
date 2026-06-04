@@ -145,7 +145,7 @@ export function MoviesScreen({
 
   return (
     <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
-      <header className="flex items-center gap-3 border-b border-white/5 bg-black/40 px-4 py-3 backdrop-blur">
+      <header className="flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
         <button
           onClick={onBack}
           aria-label="Voltar"
@@ -159,19 +159,23 @@ export function MoviesScreen({
             value={chanQuery}
             onChange={(e) => setChanQuery(e.target.value)}
             placeholder="Search"
-            className="h-11 w-full rounded-full border border-white/10 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
+            className="h-10 sm:h-11 w-full rounded-full border border-white/10 bg-white/5 pl-10 sm:pl-11 pr-4 text-xs sm:text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <TopIcon icon={LayoutGrid} label="Categorias" />
-          <TopIcon icon={MoreVertical} label="Opções" />
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="hidden md:block">
+            <TopIcon icon={LayoutGrid} label="Categorias" />
+          </div>
+          <div className="hidden lg:block">
+            <TopIcon icon={MoreVertical} label="Opções" />
+          </div>
           <TopIcon icon={Settings} label="Configurações" onClick={onOpenSettings} />
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-3 p-3 md:grid-cols-[260px_320px_minmax(0,1fr)] md:gap-4 md:p-4">
+      <div className="grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-1 sm:grid-cols-[180px_220px_minmax(0,1fr)] md:grid-cols-[260px_320px_minmax(0,1fr)] auto-rows-max md:auto-rows-auto">
         {/* Categories */}
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto" style={{ maxHeight: '180px' }}>
           <div className="border-b border-white/5 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -196,13 +200,13 @@ export function MoviesScreen({
         </aside>
 
         {/* Movie list */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 sm:col-span-auto row-start-3 sm:row-start-auto md:row-start-auto" style={{ maxHeight: '300px' }}>
           <div className="flex-1 overflow-y-auto p-2">
             {visibleMovies.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">Nenhum filme encontrado.</div>
             ) : (
               <>
-                <ul className="space-y-1.5">
+                <ul className="space-y-1">
                   {renderedMovies.map((m, idx) => {
                     const active = selected?.id === m.id;
                     return (
@@ -211,29 +215,29 @@ export function MoviesScreen({
                           onClick={() => selectMovie(m)}
                           onDoubleClick={() => playMovie(m)}
                           className={[
-                            "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
+                            "group flex w-full items-center gap-2 rounded-xl border px-2 sm:px-3 py-2 text-left transition focus:outline-none text-sm",
                             active
                               ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
                               : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
                           ].join(" ")}
                         >
                           <span className={[
-                            "w-8 shrink-0 text-right text-sm font-bold tabular-nums",
+                            "w-6 shrink-0 text-right text-xs font-bold tabular-nums",
                             active ? "text-amber-300" : "text-white/40",
                           ].join(" ")}>{idx + 1}</span>
                           <span className={[
-                            "grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10",
+                            "grid h-8 w-6 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10 text-xs",
                             active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70",
                           ].join(" ")}>
                             {m.logo ? (
                               <img src={getDisplayImageUrl(m.logo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                            ) : <Film className="h-4 w-4" />}
+                            ) : <Film className="h-3.5 w-3.5" />}
                           </span>
                           <span className={[
-                            "min-w-0 flex-1 truncate text-sm font-medium",
+                            "min-w-0 flex-1 truncate text-xs sm:text-sm font-medium",
                             active ? "text-amber-300" : "text-white/90",
                           ].join(" ")}>{m.name}</span>
-                          {favorites.has(m.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
+                          {favorites.has(m.id) && <Heart className="h-3 w-3 shrink-0 fill-amber-300 text-amber-300" />}
                         </button>
                       </li>
                     );
@@ -242,7 +246,7 @@ export function MoviesScreen({
                 {renderedMovies.length < visibleMovies.length && (
                   <button
                     onClick={() => setVisibleCount((c) => c + 300)}
-                    className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
                   >
                     Carregar mais ({visibleMovies.length - renderedMovies.length} restantes)
                   </button>
@@ -253,36 +257,37 @@ export function MoviesScreen({
         </section>
 
         {/* Player / poster */}
-        <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-2 sm:gap-3 overflow-hidden order-2">
           <div
             ref={playerWrapRef}
             onClick={() => { if (playing) goFullscreen(); else if (selected) playMovie(selected); }}
-            className="group relative aspect-video w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
+            style={{ aspectRatio: '16/9', maxHeight: '200px' }}
           >
             {playing ? (
-              <video ref={videoRef} autoPlay playsInline controls={false} className="h-full w-full bg-black" />
+              <video ref={videoRef} autoPlay playsInline controls={true} controlsList="nodownload" className="h-full w-full bg-black" />
             ) : posterUrl ? (
-              <img src={posterUrl} alt={selected?.name || ""} className="h-full w-full object-cover opacity-70" />
+              <img src={posterUrl} alt={selected?.name || ""} className="h-full w-full object-cover" />
             ) : (
               <div className="absolute inset-0 grid place-items-center text-white/40"><Film className="h-16 w-16" strokeWidth={1.2} /></div>
             )}
 
             {!playing && selected && (
-              <div className="absolute inset-0 grid place-items-center bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+              <div className="absolute inset-0 grid place-items-center">
                 <button className="inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-3 text-sm font-bold uppercase tracking-wider text-black shadow-lg hover:bg-amber-300">
                   <PlayCircle className="h-5 w-5" /> Assistir
                 </button>
               </div>
             )}
 
-            <div className="pointer-events-none absolute right-3 top-3 rounded-full bg-black/60 p-2 opacity-0 ring-1 ring-white/10 transition group-hover:opacity-100">
-              <Maximize2 className="h-4 w-4 text-white" />
+            <div className="pointer-events-none absolute right-2 top-2 sm:right-3 sm:top-3 rounded-full bg-black/60 p-1.5 sm:p-2 opacity-0 ring-1 ring-white/10 transition group-hover:opacity-100">
+              <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
             </div>
 
             {playing && loading && (
               <div className="absolute inset-0 grid place-items-center bg-black/70 text-white">
-                <div className="flex flex-col items-center gap-2 text-sm">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-300" /> Carregando filme...
+                <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-300" /> Carregando filme...
                 </div>
               </div>
             )}
@@ -299,12 +304,12 @@ export function MoviesScreen({
           </div>
 
           {selected && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-4 py-3 backdrop-blur">
+            <div className="flex items-center justify-between gap-2 sm:gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-3 sm:px-4 py-2 sm:py-3 backdrop-blur">
               <div className="min-w-0">
-                <div className="truncate text-lg font-bold text-white">{selected.name}</div>
+                <div className="truncate text-sm sm:text-base font-bold text-white">{selected.name}</div>
                 <div className="truncate text-xs text-white/50">{selected.group}</div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 <Action active={favorites.has(selected.id)} onClick={() => onToggleFavorite(selected.id)} icon={Heart} label="Favorite" />
                 <Action onClick={() => playMovie(selected)} icon={PlayCircle} label="Play" />
                 <Action onClick={goFullscreen} icon={Maximize2} label="Tela cheia" />

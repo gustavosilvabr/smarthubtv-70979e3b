@@ -75,3 +75,70 @@
   -webkit-mask-image: linear-gradient(to right, black 85%, transparent);
           mask-image: linear-gradient(to right, black 85%, transparent);
 }
+
+/* Video Controls Styling */
+video {
+  --control-color: #fbbf24;
+  --control-hover: rgba(251, 191, 36, 0.2);
+}
+
+video::-webkit-media-controls-panel {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-mute-button,
+video::-webkit-media-controls-fullscreen-button,
+video::-webkit-media-controls-picture-in-picture-button {
+  background-color: transparent;
+  color: var(--control-color);
+  accent-color: var(--control-color);
+}
+
+video::-webkit-media-controls-play-button:hover,
+video::-webkit-media-controls-mute-button:hover,
+video::-webkit-media-controls-fullscreen-button:hover,
+video::-webkit-media-controls-picture-in-picture-button:hover {
+  background-color: var(--control-hover);
+  border-radius: 4px;
+}
+
+video::-webkit-media-controls-timeline {
+  accent-color: var(--control-color);
+}
+
+video::-webkit-media-controls-volume-slider {
+  accent-color: var(--control-color);
+}
+
+video::-webkit-media-text-track-display {
+  background-color: rgba(0, 0, 0, 0.8);
+  font-size: 16px;
+}
+
+video::-webkit-media-controls-current-time-display,
+video::-webkit-media-controls-time-remaining-display {
+  color: var(--control-color);
+  font-weight: 600;
+}
+
+/* Firefox video controls */
+video::-moz-media-controls {
+  background-color: var(--control-bg);
+  color: var(--control-color);
+}
+
+video::-moz-progress-bar {
+  background-color: var(--control-color);
+}
+
+video::-moz-range-track {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+video::-moz-range-thumb {
+  background-color: var(--control-color);
+  border: none;
+}
+
