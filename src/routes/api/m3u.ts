@@ -184,11 +184,41 @@ async function xtreamFetch(settings: typeof DEFAULT_SETTINGS, action: string) {
   return res;
 }
 
-function enrichLogo(line: string, logoByName: Map<string, string>) {
+function enrichLogo(
+  line: string,
+  logoByName: Map<string, string>,
+  logoEntries: Array<[string, string]>,
+) {
   const commaIdx = line.lastIndexOf(",");
   const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
   const showName = parseEpisode(fullName).showName;
-  const logo = logoByName.get(normalizeName(showName));
+
+  // 1) exact match on parsed showName
+  const normShow = normalizeName(showName);
+  let logo = normShow ? logoByName.get(normShow) : undefined;
+
+  // 2) exact match on full title (some episodes have no S/E pattern)
+  if (!logo) {
+    const normFull = normalizeName(fullName);
+    if (normFull) logo = logoByName.get(normFull);
+  }
+
+  // 3) longest-prefix match: find the series whose normalized name is a
+  // prefix of the episode's normalized full title (handles "Show Name S01E01",
+  // "Show Name - Temporada 1", "Show Name (2024) ...", etc.)
+  if (!logo) {
+    const normFull = normalizeName(fullName);
+    if (normFull) {
+      for (const [key, value] of logoEntries) {
+        if (!key) continue;
+        if (normFull === key || normFull.startsWith(key + " ")) {
+          logo = value;
+          break;
+        }
+      }
+    }
+  }
+
   if (!logo) return line;
   if (/tvg-logo="[^"]*"/i.test(line)) {
     return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
