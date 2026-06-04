@@ -244,27 +244,37 @@ export function SeriesScreen({
             {visibleSeries.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">Nenhuma série encontrada.</div>
             ) : (
-              <ul className="space-y-1.5">
-                {visibleSeries.map((s, idx) => {
-                  const active = selected?.id === s.id;
-                  return (
-                    <li key={s.id}>
-                      <button onClick={() => selectSeries(s)} className={[
-                        "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
-                        active ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
-                          : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
-                      ].join(" ")}>
-                        <span className={["w-8 shrink-0 text-right text-sm font-bold tabular-nums", active ? "text-amber-300" : "text-white/40"].join(" ")}>{idx + 1}</span>
-                        <span className={["grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10", active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70"].join(" ")}>
-                          {s.logo ? <img src={getDisplayImageUrl(s.logo)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Tv className="h-4 w-4" />}
-                        </span>
-                        <span className={["min-w-0 flex-1 truncate text-sm font-medium", active ? "text-amber-300" : "text-white/90"].join(" ")}>{s.name}</span>
-                        {favorites.has(s.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="space-y-1.5">
+                  {renderedSeries.map((s, idx) => {
+                    const active = selected?.id === s.id;
+                    return (
+                      <li key={s.id}>
+                        <button onClick={() => selectSeries(s)} className={[
+                          "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
+                          active ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
+                            : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
+                        ].join(" ")}>
+                          <span className={["w-8 shrink-0 text-right text-sm font-bold tabular-nums", active ? "text-amber-300" : "text-white/40"].join(" ")}>{idx + 1}</span>
+                          <span className={["grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10", active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70"].join(" ")}>
+                            {s.logo ? <img src={getDisplayImageUrl(s.logo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Tv className="h-4 w-4" />}
+                          </span>
+                          <span className={["min-w-0 flex-1 truncate text-sm font-medium", active ? "text-amber-300" : "text-white/90"].join(" ")}>{s.name}</span>
+                          {favorites.has(s.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {renderedSeries.length < visibleSeries.length && (
+                  <button
+                    onClick={() => setVisibleCount((c) => c + 300)}
+                    className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
+                  >
+                    Carregar mais ({visibleSeries.length - renderedSeries.length} restantes)
+                  </button>
+                )}
+              </>
             )}
           </div>
         </section>
