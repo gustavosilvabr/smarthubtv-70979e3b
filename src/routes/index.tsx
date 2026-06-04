@@ -232,6 +232,20 @@ function Dashboard() {
     );
   }
 
+  // ---------- LIVE TV (dedicated 3-column screen) ----------
+  if (view === "live") {
+    const liveItems = items.filter((i) => i.type === "live");
+    return (
+      <LiveTvScreen
+        items={liveItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFav}
+        onBack={goHome}
+        onOpenSettings={() => setView("settings")}
+      />
+    );
+  }
+
   // ---------- BROWSE ----------
   return (
     <div className="flex min-h-screen bg-background text-foreground">
