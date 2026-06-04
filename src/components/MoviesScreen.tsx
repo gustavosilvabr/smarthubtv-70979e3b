@@ -40,10 +40,12 @@ export function MoviesScreen({
 }: Props) {
   const [catQuery, setCatQuery] = useState("");
   const [chanQuery, setChanQuery] = useState("");
+  const [chanQueryDebounced, setChanQueryDebounced] = useState("");
   const [category, setCategory] = useState<SpecialCat | string>("all");
   const [selected, setSelected] = useState<M3UItem | null>(null);
   const [recents, setRecents] = useState<string[]>([]);
   const [playing, setPlaying] = useState<M3UItem | null>(null);
+  const [visibleCount, setVisibleCount] = useState(200);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -53,6 +55,15 @@ export function MoviesScreen({
       if (raw) setRecents(JSON.parse(raw));
     } catch {}
   }, []);
+
+  // Debounce search to keep typing snappy on huge lists
+  useEffect(() => {
+    const t = setTimeout(() => setChanQueryDebounced(chanQuery), 180);
+    return () => clearTimeout(t);
+  }, [chanQuery]);
+
+  // Reset visible window when filter changes
+  useEffect(() => { setVisibleCount(200); }, [category, chanQueryDebounced]);
 
   const realCats = useMemo(() => {
     const map = new Map<string, number>();
@@ -79,10 +90,15 @@ export function MoviesScreen({
   }, [items, category, favorites, recents]);
 
   const visibleMovies = useMemo(() => {
-    const q = chanQuery.trim().toLowerCase();
+    const q = chanQueryDebounced.trim().toLowerCase();
     if (!q) return moviesForCategory;
     return moviesForCategory.filter((i) => i.name.toLowerCase().includes(q));
-  }, [moviesForCategory, chanQuery]);
+  }, [moviesForCategory, chanQueryDebounced]);
+
+  const renderedMovies = useMemo(
+    () => visibleMovies.slice(0, visibleCount),
+    [visibleMovies, visibleCount],
+  );
 
   useEffect(() => {
     if (!visibleMovies.length) return;
@@ -116,11 +132,14 @@ export function MoviesScreen({
     } catch (e) { console.error("[fullscreen]", e); }
   };
 
-  const counts = {
-    all: items.length,
-    recent: recents.filter((id) => items.some((i) => i.id === id)).length,
-    favorites: items.filter((i) => favorites.has(i.id)).length,
-  };
+  const counts = useMemo(() => {
+    const ids = new Set(items.map((i) => i.id));
+    return {
+      all: items.length,
+      recent: recents.reduce((n, id) => (ids.has(id) ? n + 1 : n), 0),
+      favorites: items.reduce((n, i) => (favorites.has(i.id) ? n + 1 : n), 0),
+    };
+  }, [items, recents, favorites]);
 
   const posterUrl = selected ? getDisplayImageUrl(selected.logo) : "";
 
@@ -182,43 +201,53 @@ export function MoviesScreen({
             {visibleMovies.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">Nenhum filme encontrado.</div>
             ) : (
-              <ul className="space-y-1.5">
-                {visibleMovies.map((m, idx) => {
-                  const active = selected?.id === m.id;
-                  return (
-                    <li key={m.id}>
-                      <button
-                        onClick={() => selectMovie(m)}
-                        onDoubleClick={() => playMovie(m)}
-                        className={[
-                          "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
-                          active
-                            ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
-                            : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
-                        ].join(" ")}
-                      >
-                        <span className={[
-                          "w-8 shrink-0 text-right text-sm font-bold tabular-nums",
-                          active ? "text-amber-300" : "text-white/40",
-                        ].join(" ")}>{idx + 1}</span>
-                        <span className={[
-                          "grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10",
-                          active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70",
-                        ].join(" ")}>
-                          {m.logo ? (
-                            <img src={getDisplayImageUrl(m.logo)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                          ) : <Film className="h-4 w-4" />}
-                        </span>
-                        <span className={[
-                          "min-w-0 flex-1 truncate text-sm font-medium",
-                          active ? "text-amber-300" : "text-white/90",
-                        ].join(" ")}>{m.name}</span>
-                        {favorites.has(m.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <>
+                <ul className="space-y-1.5">
+                  {renderedMovies.map((m, idx) => {
+                    const active = selected?.id === m.id;
+                    return (
+                      <li key={m.id}>
+                        <button
+                          onClick={() => selectMovie(m)}
+                          onDoubleClick={() => playMovie(m)}
+                          className={[
+                            "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
+                            active
+                              ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
+                              : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
+                          ].join(" ")}
+                        >
+                          <span className={[
+                            "w-8 shrink-0 text-right text-sm font-bold tabular-nums",
+                            active ? "text-amber-300" : "text-white/40",
+                          ].join(" ")}>{idx + 1}</span>
+                          <span className={[
+                            "grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10",
+                            active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70",
+                          ].join(" ")}>
+                            {m.logo ? (
+                              <img src={getDisplayImageUrl(m.logo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : <Film className="h-4 w-4" />}
+                          </span>
+                          <span className={[
+                            "min-w-0 flex-1 truncate text-sm font-medium",
+                            active ? "text-amber-300" : "text-white/90",
+                          ].join(" ")}>{m.name}</span>
+                          {favorites.has(m.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {renderedMovies.length < visibleMovies.length && (
+                  <button
+                    onClick={() => setVisibleCount((c) => c + 300)}
+                    className="mt-3 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white/70 hover:bg-white/5"
+                  >
+                    Carregar mais ({visibleMovies.length - renderedMovies.length} restantes)
+                  </button>
+                )}
+              </>
             )}
           </div>
         </section>
