@@ -193,29 +193,46 @@ function enrichLogo(
   const fullName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "";
   const showName = parseEpisode(fullName).showName;
 
-  // 1) exact match on parsed showName
-  const normShow = normalizeName(showName);
-  let logo = normShow ? logoByName.get(normShow) : undefined;
+  const candidates = uniq([
+    normalizeName(showName),
+    normalizeName(stripQualifiers(showName)),
+    normalizeName(fullName),
+    normalizeName(stripQualifiers(fullName)),
+  ]).filter(Boolean);
 
-  // 2) exact match on full title (some episodes have no S/E pattern)
-  if (!logo) {
-    const normFull = normalizeName(fullName);
-    if (normFull) logo = logoByName.get(normFull);
+  let logo: string | undefined;
+
+  // 1) exact match on any candidate
+  for (const c of candidates) {
+    logo = logoByName.get(c);
+    if (logo) break;
   }
 
-  // 3) longest-prefix match: find the series whose normalized name is a
-  // prefix of the episode's normalized full title (handles "Show Name S01E01",
-  // "Show Name - Temporada 1", "Show Name (2024) ...", etc.)
+  // 2) longest-prefix / contains match against series names
   if (!logo) {
-    const normFull = normalizeName(fullName);
-    if (normFull) {
+    for (const c of candidates) {
       for (const [key, value] of logoEntries) {
         if (!key) continue;
-        if (normFull === key || normFull.startsWith(key + " ")) {
+        if (c === key || c.startsWith(key + " ") || c.includes(" " + key + " ")) {
           logo = value;
           break;
         }
       }
+      if (logo) break;
+    }
+  }
+
+  // 3) reverse: series name starts with the candidate (handles truncated episode titles)
+  if (!logo) {
+    for (const c of candidates) {
+      if (c.length < 4) continue;
+      for (const [key, value] of logoEntries) {
+        if (key.startsWith(c + " ") || key === c) {
+          logo = value;
+          break;
+        }
+      }
+      if (logo) break;
     }
   }
 
@@ -224,6 +241,21 @@ function enrichLogo(
     return line.replace(/tvg-logo="[^"]*"/i, `tvg-logo="${escapeAttr(logo)}"`);
   }
   return line.replace("#EXTINF", `#EXTINF tvg-logo="${escapeAttr(logo)}"`);
+}
+
+function uniq<T>(arr: T[]): T[] {
+  return Array.from(new Set(arr));
+}
+
+// Remove common quality/language/year markers and bracketed extras.
+function stripQualifiers(value: string): string {
+  return value
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\b(19|20)\d{2}\b/g, " ")
+    .replace(/\b(4k|fhd|hd|sd|uhd|hdr|dual|dublado|dub|legendado|leg|nac|nacional|completo|completa|temporada|season)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeName(value: string) {
