@@ -80,6 +80,10 @@ export const Route = createFileRoute("/api/m3u")({
               for (const s of seriesList) {
                 if (s.name && s.cover) logoByName.set(normalizeName(s.name), s.cover);
               }
+              // Sorted entries (longest normalized name first) for prefix fallback matching
+              const logoEntries: Array<[string, string]> = [...logoByName.entries()].sort(
+                (a, b) => b[0].length - a[0].length,
+              );
               (seriesList as unknown as unknown[]).length = 0;
 
               const m3uUrl = `${settings.server}/get.php?username=${encodeURIComponent(settings.username)}&password=${encodeURIComponent(settings.password)}&type=m3u_plus&output=mpegts`;
