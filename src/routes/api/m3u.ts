@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildLiveStreamUrls } from "@/utils/buildLiveStreamUrls";
 import { DEFAULT_IPTV_SETTINGS, normalizeIptvSettings } from "@/utils/iptvSettings";
-import { parseEpisode } from "@/utils/parseEpisode";
 
 const DEFAULT_SETTINGS = DEFAULT_IPTV_SETTINGS;
 
