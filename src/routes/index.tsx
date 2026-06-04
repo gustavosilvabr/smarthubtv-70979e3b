@@ -305,9 +305,7 @@ function Dashboard() {
 
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">
-              {view === "movie" && "Filmes"}
-              {view === "series" && "Séries"}
-              {view === "favorites" && "Meus favoritos"}
+              {view === "favorites" ? "Meus favoritos" : ""}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {filtered.length} resultados {search && `para "${search}"`}
