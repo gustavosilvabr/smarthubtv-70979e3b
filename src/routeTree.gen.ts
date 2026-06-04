@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiStreamRouteImport } from './routes/api/stream'
+import { Route as ApiSeriesInfoRouteImport } from './routes/api/series-info'
 import { Route as ApiM3uRouteImport } from './routes/api/m3u'
+import { Route as ApiEpgRouteImport } from './routes/api/epg'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -23,39 +25,63 @@ const ApiStreamRoute = ApiStreamRouteImport.update({
   path: '/api/stream',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSeriesInfoRoute = ApiSeriesInfoRouteImport.update({
+  id: '/api/series-info',
+  path: '/api/series-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiM3uRoute = ApiM3uRouteImport.update({
   id: '/api/m3u',
   path: '/api/m3u',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEpgRoute = ApiEpgRouteImport.update({
+  id: '/api/epg',
+  path: '/api/epg',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/epg': typeof ApiEpgRoute
   '/api/m3u': typeof ApiM3uRoute
+  '/api/series-info': typeof ApiSeriesInfoRoute
   '/api/stream': typeof ApiStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/epg': typeof ApiEpgRoute
   '/api/m3u': typeof ApiM3uRoute
+  '/api/series-info': typeof ApiSeriesInfoRoute
   '/api/stream': typeof ApiStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/epg': typeof ApiEpgRoute
   '/api/m3u': typeof ApiM3uRoute
+  '/api/series-info': typeof ApiSeriesInfoRoute
   '/api/stream': typeof ApiStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/m3u' | '/api/stream'
+  fullPaths: '/' | '/api/epg' | '/api/m3u' | '/api/series-info' | '/api/stream'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/m3u' | '/api/stream'
-  id: '__root__' | '/' | '/api/m3u' | '/api/stream'
+  to: '/' | '/api/epg' | '/api/m3u' | '/api/series-info' | '/api/stream'
+  id:
+    | '__root__'
+    | '/'
+    | '/api/epg'
+    | '/api/m3u'
+    | '/api/series-info'
+    | '/api/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiEpgRoute: typeof ApiEpgRoute
   ApiM3uRoute: typeof ApiM3uRoute
+  ApiSeriesInfoRoute: typeof ApiSeriesInfoRoute
   ApiStreamRoute: typeof ApiStreamRoute
 }
 
@@ -75,6 +101,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/series-info': {
+      id: '/api/series-info'
+      path: '/api/series-info'
+      fullPath: '/api/series-info'
+      preLoaderRoute: typeof ApiSeriesInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/m3u': {
       id: '/api/m3u'
       path: '/api/m3u'
@@ -82,24 +115,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiM3uRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/epg': {
+      id: '/api/epg'
+      path: '/api/epg'
+      fullPath: '/api/epg'
+      preLoaderRoute: typeof ApiEpgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiEpgRoute: ApiEpgRoute,
   ApiM3uRoute: ApiM3uRoute,
+  ApiSeriesInfoRoute: ApiSeriesInfoRoute,
   ApiStreamRoute: ApiStreamRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

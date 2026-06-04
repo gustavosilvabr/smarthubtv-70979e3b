@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
+import { EpgPanel } from "@/components/EpgPanel";
 
 const RECENTS_KEY = "smarthub:live:recents";
 const MAX_RECENTS = 30;
@@ -27,6 +28,7 @@ interface Props {
   onToggleFavorite: (id: string) => void;
   onBack: () => void;
   onOpenSettings?: () => void;
+  settingsQuery: string;
 }
 
 type SpecialCat = "all" | "recent" | "favorites";
@@ -37,6 +39,7 @@ export function LiveTvScreen({
   onToggleFavorite,
   onBack,
   onOpenSettings,
+  settingsQuery,
 }: Props) {
   const [catQuery, setCatQuery] = useState("");
   const [chanQuery, setChanQuery] = useState("");
@@ -357,6 +360,14 @@ export function LiveTvScreen({
               </div>
             </div>
           )}
+
+          {/* EPG grid for the selected channel */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <EpgPanel
+              streamId={selected?.streamId}
+              settingsQuery={settingsQuery}
+            />
+          </div>
         </section>
       </div>
     </div>
