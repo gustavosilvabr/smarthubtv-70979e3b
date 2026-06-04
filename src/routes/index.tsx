@@ -272,7 +272,6 @@ function Dashboard() {
 
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">
-              {view === "live" && "Canais ao vivo"}
               {view === "movie" && "Filmes"}
               {view === "series" && "Séries"}
               {view === "favorites" && "Meus favoritos"}
