@@ -12,7 +12,8 @@ function proxied(url: string) {
   return url;
 }
 
-const LOAD_TIMEOUT_MS = 20_000;
+const LOAD_TIMEOUT_LIVE_MS = 20_000;
+const LOAD_TIMEOUT_VOD_MS = 60_000;
 
 export interface UseHlsPlayerResult {
   loading: boolean;
