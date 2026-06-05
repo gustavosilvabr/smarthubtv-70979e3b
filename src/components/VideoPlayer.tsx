@@ -7,57 +7,210 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * Route a URL through the server-side CORS proxy.
+ * Always proxy ALL external URLs — the proxy streams the body passthrough
+ * so the browser never makes a cross-origin request directly.
+ * HTTP URLs are upgraded to HTTPS before proxying to avoid mixed-content issues.
+ */
 function proxied(url: string) {
-  if (
-    typeof window !== "undefined" &&
-    window.location.protocol === "https:" &&
-    url.startsWith("http:")
-  ) {
-    return `/api/stream?u=${encodeURIComponent(url)}`;
+  if (typeof window === "undefined") return url;
+  if (url.startsWith("/") || url.startsWith("blob:") || url.startsWith("data:")) return url;
+  // Upgrade HTTP to HTTPS so the proxy request itself doesn't have mixed content
+  let secureUrl = url;
+  if (secureUrl.startsWith("http://")) {
+    secureUrl = "https://" + secureUrl.slice(7);
   }
-  return url;
+  return `/api/stream?u=${encodeURIComponent(secureUrl)}`;
 }
 
-const LOAD_TIMEOUT_MS = 20_000;
+const LOAD_TIMEOUT_MS = 18_000;
+const LIVE_MAX_DRIFT_S = 25;
+const LIVE_EDGE_KEEP_S = 3;
+const LIVE_WATCH_INTERVAL_MS = 3_000;
+const STALL_TOLERANCE_S = 7;
+const AUTOPLAY_RETRY_MS = 1_000;
+const ERROR_RETRY_MS = 2_500;
+const MAX_AUTO_RETRIES = 6;
+
+let cachedBandwidth = 10;
+
+async function testBandwidthQuick() {
+  try {
+    const start = performance.now();
+    const res = await fetch("/api/stream?u=" + encodeURIComponent("https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png"), {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.body) return;
+    let bytes = 0;
+    const reader = res.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value?.length || 0;
+    }
+    const duration = (performance.now() - start) / 1000;
+    const bandwidthMbps = (bytes * 8) / duration / 1_000_000;
+    cachedBandwidth = Math.max(1, Math.min(100, bandwidthMbps));
+  } catch {}
+}
+
+function buildHlsConfig(isLive: boolean, bandwidthMbps: number = 10) {
+  let maxBuffer = 12;
+  let maxMaxBuffer = 25;
+  let backBuffer = 3;
+  let syncDuration = 3;
+  let maxLatency = 8;
+  let playbackRate = 1.1;
+  let retries = 4;
+  let timeouts = 8000;
+
+  if (bandwidthMbps > 20) {
+    maxBuffer = 15;
+    maxMaxBuffer = 30;
+    backBuffer = 4;
+    syncDuration = 4;
+    maxLatency = 10;
+    playbackRate = 1.05;
+    retries = 4;
+    timeouts = 10000;
+  } else if (bandwidthMbps < 5) {
+    maxBuffer = 6;
+    maxMaxBuffer = 12;
+    backBuffer = 2;
+    syncDuration = 2;
+    maxLatency = 5;
+    playbackRate = 1.2;
+    retries = 3;
+    timeouts = 6000;
+  }
+
+  return {
+    enableWorker: true,
+    lowLatencyMode: false,
+    maxBufferLength: isLive ? maxBuffer : 30,
+    maxMaxBufferLength: isLive ? maxMaxBuffer : 600,
+    backBufferLength: isLive ? backBuffer : 30,
+    liveSyncDurationCount: isLive ? syncDuration : 3,
+    liveMaxLatencyDurationCount: isLive ? maxLatency : 10,
+    maxLiveSyncPlaybackRate: isLive ? playbackRate : 1,
+    startPosition: isLive ? -1 : 0,
+    manifestLoadingTimeOut: timeouts,
+    levelLoadingTimeOut: timeouts,
+    fragLoadingTimeOut: isLive ? (timeouts - 2000) : 30_000,
+    fragLoadingMaxRetry: retries,
+    manifestLoadingMaxRetry: retries,
+    levelLoadingMaxRetry: retries,
+    nudgeOffset: 0.2,
+    nudgeMaxRetry: 5,
+    fragLoadingMaxRetryTimeout: isLive ? 5_000 : 64_000,
+    abrBandwidthFactor: 0.85,
+    abrBandwidthSafeFactor: 0.75,
+    abrMaxWithRealBitrate: true,
+    maxStarvationDelay: isLive ? 4 : 4,
+    maxLoadingDelay: isLive ? 4 : 4,
+  };
+}
+
+function buildMpegtsConfig(isLive: boolean, bandwidthMbps: number = 10) {
+  const hasGoodBandwidth = bandwidthMbps > 20;
+  return {
+    enableWorker: true,
+    enableStashBuffer: isLive,
+    stashInitialSize: isLive ? (hasGoodBandwidth ? 384 : 256) : 128,
+    isLive,
+    liveBufferLatencyChasing: isLive,
+    liveBufferLatencyMaxLatency: hasGoodBandwidth ? 4.0 : 2.0,
+    liveBufferLatencyMinRemain: hasGoodBandwidth ? 1.5 : 0.8,
+    lazyLoad: false,
+    autoCleanupSourceBuffer: isLive,
+    autoCleanupMaxBackwardDuration: isLive ? (hasGoodBandwidth ? 12 : 8) : 30,
+    autoCleanupMinBackwardDuration: isLive ? (hasGoodBandwidth ? 8 : 5) : 20,
+  };
+}
+
+function startLiveEdgeWatcher(
+  video: HTMLVideoElement,
+  getDisposed: () => boolean,
+): ReturnType<typeof setInterval> {
+  let stalledSince: number | null = null;
+  let lastTime = video.currentTime;
+  let lastCheck = Date.now();
+
+  return setInterval(() => {
+    if (getDisposed() || video.paused || video.ended || video.readyState < 2) return;
+    const now = Date.now();
+    const timeSinceCheck = (now - lastCheck) / 1000;
+    const timeAdvanced = video.currentTime - lastTime;
+
+    if (timeAdvanced < timeSinceCheck * 0.5) {
+      if (stalledSince === null) stalledSince = now;
+      if ((now - stalledSince) > STALL_TOLERANCE_S * 1000) {
+        stalledSince = null;
+        jumpToLiveEdge(video);
+      }
+    } else {
+      stalledSince = null;
+    }
+    lastTime = video.currentTime;
+    lastCheck = now;
+
+    if (!video.seekable || video.seekable.length === 0) return;
+    const liveEdge = video.seekable.end(video.seekable.length - 1);
+    if (liveEdge - video.currentTime > LIVE_MAX_DRIFT_S) jumpToLiveEdge(video);
+  }, LIVE_WATCH_INTERVAL_MS);
+}
+
+function jumpToLiveEdge(video: HTMLVideoElement) {
+  try {
+    if (video.seekable && video.seekable.length > 0) {
+      const target = video.seekable.end(video.seekable.length - 1) - LIVE_EDGE_KEEP_S;
+      if (target > video.currentTime) video.currentTime = target;
+    }
+    if (video.paused) video.play().catch(() => {});
+  } catch {}
+}
 
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  // Avoid typed refs that require importing the libs at module scope (SSR-safe).
   const hlsRef = useRef<any>(null);
   const mpegtsRef = useRef<any>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const watcherRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fallbackAttemptedRef = useRef(false);
+  const autoRetryCountRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   const clearLoadTimeout = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  }, []);
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
   }, []);
 
   const destroyPlayers = useCallback(() => {
-    if (hlsRef.current) {
-      try { hlsRef.current.destroy(); } catch {}
-      hlsRef.current = null;
-    }
-    if (mpegtsRef.current) {
-      try { mpegtsRef.current.destroy(); } catch {}
-      mpegtsRef.current = null;
-    }
-  }, []);
+    if (watcherRef.current) { clearInterval(watcherRef.current); watcherRef.current = null; }
+    clearRetryTimer();
+    if (hlsRef.current) { try { hlsRef.current.destroy(); } catch {} hlsRef.current = null; }
+    if (mpegtsRef.current) { try { mpegtsRef.current.destroy(); } catch {} mpegtsRef.current = null; }
+  }, [clearRetryTimer]);
 
   useEffect(() => {
     if (!item || !videoRef.current) return;
     if (typeof window === "undefined") return;
+
+    testBandwidthQuick().catch(() => {});
 
     const video = videoRef.current;
     const streamUrl = proxied(item.url);
     const fallbackUrl = item.fallbackUrl ? proxied(item.fallbackUrl) : undefined;
     const isLive = item.type === "live";
     let disposed = false;
+    const getDisposed = () => disposed;
 
     const startTimeout = (onTimeout: () => void) => {
       clearLoadTimeout();
@@ -78,16 +231,42 @@ export function VideoPlayer({ item, onClose }: Props) {
       clearLoadTimeout();
       setLoading(false);
       setError("");
+      if (isLive && !hlsRef.current && !watcherRef.current) {
+        watcherRef.current = startLiveEdgeWatcher(video, getDisposed);
+      }
+    };
+
+    const autoRetryPlay = (video: HTMLVideoElement, fallback?: () => void) => {
+      clearRetryTimer();
+      if (autoRetryCountRef.current >= MAX_AUTO_RETRIES) {
+        if (fallback) { fallback(); return; }
+        setLoading(false);
+        setError("Canal indisponível no momento. Tente outro canal.");
+        return;
+      }
+      autoRetryCountRef.current++;
+      retryTimerRef.current = setTimeout(() => {
+        if (disposed) return;
+        video.play().catch(() => autoRetryPlay(video, fallback));
+      }, AUTOPLAY_RETRY_MS);
     };
 
     const showClickToPlay = () => {
-      clearLoadTimeout();
-      setLoading(false);
-      setError("Clique no play para iniciar o canal.");
+      // Legacy: just trigger auto-retry instead of showing a button
+      autoRetryPlay(video);
     };
 
-    const showError = (msg: string) => {
+    const showError = (msg: string, autoRetry = false) => {
       clearLoadTimeout();
+      if (watcherRef.current) { clearInterval(watcherRef.current); watcherRef.current = null; }
+      if (autoRetry && autoRetryCountRef.current < MAX_AUTO_RETRIES) {
+        clearRetryTimer();
+        retryTimerRef.current = setTimeout(() => {
+          if (disposed) return;
+          setAttempt((n) => n + 1);
+        }, ERROR_RETRY_MS);
+        return;
+      }
       setLoading(false);
       setError(msg);
     };
@@ -95,11 +274,11 @@ export function VideoPlayer({ item, onClose }: Props) {
     const playNative = (url: string) => {
       resetVideo();
       startTimeout(() =>
-        showError("Não foi possível reproduzir este canal."),
+        showError("Não foi possível reproduzir este canal.", true),
       );
       video.src = url;
       video.load();
-      video.play().catch(showClickToPlay);
+      video.play().catch(() => autoRetryPlay(video));
     };
 
     const playTs = async (url: string) => {
@@ -111,32 +290,27 @@ export function VideoPlayer({ item, onClose }: Props) {
         const mpegts = mod.default;
         startTimeout(() =>
           showError(
-            "Não foi possível reproduzir este canal. Pode estar bloqueado por CORS.",
+            "Canal temporariamente indisponível.", true
           ),
         );
         if (mpegts.isSupported()) {
           const player = mpegts.createPlayer(
             { type: "mpegts", isLive, url, cors: true } as any,
-            {
-              enableWorker: false,
-              enableStashBuffer: !isLive,
-              stashInitialSize: 128,
-              isLive,
-              liveBufferLatencyChasing: isLive,
-              lazyLoad: false,
-              autoCleanupSourceBuffer: isLive,
-            },
+            buildMpegtsConfig(isLive, cachedBandwidth),
           );
           mpegtsRef.current = player;
           player.on(mpegts.Events.ERROR, (type: any, detail: any, info: any) => {
             console.error("[mpegts] error", type, detail, info);
             showError(
-              "Erro ao carregar o canal. Pode estar bloqueado por CORS.",
+              "Erro ao carregar o canal.", true
             );
           });
           player.attachMediaElement(video);
           player.load();
-          Promise.resolve(player.play()).catch(showClickToPlay);
+          Promise.resolve(player.play()).catch(() => autoRetryPlay(video));
+          if (isLive) {
+            watcherRef.current = startLiveEdgeWatcher(video, getDisposed);
+          }
         } else {
           playNative(url);
         }
@@ -151,7 +325,7 @@ export function VideoPlayer({ item, onClose }: Props) {
         playTs(fallbackUrl);
       } else {
         showError(
-          "Erro ao carregar o canal. Pode estar bloqueado por CORS no navegador.",
+          "Canal temporariamente indisponível.", true
         );
       }
     };
@@ -173,31 +347,23 @@ export function VideoPlayer({ item, onClose }: Props) {
           }
           return;
         }
-        const hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-          backBufferLength: 30,
-          liveSyncDurationCount: 3,
-          manifestLoadingTimeOut: 15000,
-          levelLoadingTimeOut: 15000,
-          fragLoadingTimeOut: 20000,
-        });
+        const hls = new Hls(buildHlsConfig(isLive, cachedBandwidth));
         hlsRef.current = hls;
         hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(showClickToPlay);
+          video.play().catch(() => autoRetryPlay(video, tryFallback));
         });
+        let mediaErrorCount = 0;
         hls.on(Hls.Events.ERROR, (_: any, data: any) => {
-          console.error("HLS ERROR:", data);
           if (!data.fatal) return;
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            hls.startLoad();
+            setTimeout(() => { if (!disposed) hls.startLoad(); }, 500);
             return;
           }
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-            hls.recoverMediaError();
-            return;
+            mediaErrorCount++;
+            if (mediaErrorCount <= 2) { hls.recoverMediaError(); return; }
           }
           tryFallback();
         });
@@ -210,13 +376,14 @@ export function VideoPlayer({ item, onClose }: Props) {
     setLoading(true);
     setError("");
     fallbackAttemptedRef.current = false;
+    autoRetryCountRef.current = 0;
     video.onplaying = markPlaying;
     video.onerror = tryFallback;
 
     if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8")) {
       playWithHls(streamUrl);
     } else if (/\.ts(\?|$)/i.test(streamUrl) || isLive) {
-      playTs(streamUrl);
+      playWithHls(streamUrl);
     } else {
       playNative(streamUrl);
     }
@@ -224,6 +391,8 @@ export function VideoPlayer({ item, onClose }: Props) {
     return () => {
       disposed = true;
       clearLoadTimeout();
+      clearRetryTimer();
+      if (watcherRef.current) { clearInterval(watcherRef.current); watcherRef.current = null; }
       destroyPlayers();
       video.onplaying = null;
       video.onerror = null;
@@ -231,7 +400,7 @@ export function VideoPlayer({ item, onClose }: Props) {
       video.removeAttribute("src");
       video.load();
     };
-  }, [item, attempt, clearLoadTimeout, destroyPlayers]);
+  }, [item, attempt, clearLoadTimeout, clearRetryTimer, destroyPlayers]);
 
   if (!item) return null;
 

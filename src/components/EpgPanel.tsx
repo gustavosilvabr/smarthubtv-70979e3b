@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, Clock, Loader2 } from "lucide-react";
 import type { EpgProgram } from "@/routes/api/epg";
+import { useGsapEntrance } from "@/hooks/useGsapEntrance";
+import { useRef } from "react";
 
 interface Props {
   streamId?: string | number;
@@ -24,6 +26,11 @@ export function EpgPanel({ streamId, settingsQuery }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  useGsapEntrance(scrollerRef, { x: 30, opacity: 0, duration: 0.5, staggerSelector: ".epg-item" });
+  useGsapEntrance(detailRef, { y: 20, opacity: 0, duration: 0.4, delay: 0.2 });
 
   // Live clock for progress bar
   useEffect(() => {
@@ -92,7 +99,7 @@ export function EpgPanel({ streamId, settingsQuery }: Props) {
       ) : (
         <>
           {/* Hour-grid scroller */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+          <div ref={scrollerRef} className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
             {programs.map((p, i) => {
               const isLive = i === currentIdx;
               const isPast = p.stop <= now;
@@ -102,7 +109,7 @@ export function EpgPanel({ streamId, settingsQuery }: Props) {
                   key={p.id}
                   onClick={() => setSelectedId(p.id)}
                   className={[
-                    "group flex min-w-[180px] max-w-[220px] shrink-0 flex-col gap-1 rounded-xl border px-3 py-2 text-left transition focus:outline-none",
+                    "epg-item group flex min-w-[180px] max-w-[220px] shrink-0 flex-col gap-1 rounded-xl border px-3 py-2 text-left transition focus:outline-none",
                     isActive
                       ? "border-amber-400/70 bg-gradient-to-br from-purple-700/60 to-purple-900/70 shadow-[0_0_0_1px_rgba(251,191,36,0.25)]"
                       : isLive
@@ -152,7 +159,7 @@ export function EpgPanel({ streamId, settingsQuery }: Props) {
 
           {/* Selected program detail */}
           {selected && (
-            <div className="mt-1 rounded-xl border border-white/5 bg-black/30 p-3">
+            <div ref={detailRef} className="mt-1 rounded-xl border border-white/5 bg-black/30 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-bold text-white">{selected.title}</div>

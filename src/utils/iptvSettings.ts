@@ -15,7 +15,7 @@ export const DEFAULT_IPTV_SETTINGS: IptvSettings = {
 export function hasStoredIptvSettings(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const raw = window.localStorage.getItem(IPTV_SETTINGS_KEY);
+    const raw = window.sessionStorage.getItem(IPTV_SETTINGS_KEY);
     if (!raw) return false;
     const parsed = JSON.parse(raw) as Partial<IptvSettings>;
     return Boolean(parsed?.server && parsed?.username && parsed?.password);
@@ -25,9 +25,20 @@ export function hasStoredIptvSettings(): boolean {
 }
 
 export function normalizeServerUrl(value: string) {
-  const trimmed = value.trim().replace(/\/+$/, "");
+  let trimmed = value.trim().replace(/\/+$/, "");
   if (!trimmed) return DEFAULT_IPTV_SETTINGS.server;
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  // Force http:// protocol, replacing any existing http/https prefix
+  trimmed = trimmed.replace(/^(https?):?\/*(.*)$/i, (_, __, rest) => {
+    return `http://${rest}`;
+  });
+
+  // If there is still no protocol, prefix with http://
+  if (!/^http:\/\//.test(trimmed)) {
+    trimmed = `http://${trimmed}`;
+  }
+
+  return trimmed;
 }
 
 export function normalizeIptvSettings(settings: IptvSettings): IptvSettings {

@@ -14,10 +14,15 @@ import {
   Star,
   LayoutGrid,
   PlayCircle,
+  ShieldAlert,
 } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
 import { EpgPanel } from "@/components/EpgPanel";
+import { AdultPinModal, isAdultCategory } from "@/components/AdultPinModal";
+import { useGsapEntrance } from "@/hooks/useGsapEntrance";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 
 const RECENTS_KEY = "smarthub:live:recents";
 const MAX_RECENTS = 30;
@@ -45,26 +50,62 @@ export function LiveTvScreen({
   const [chanQuery, setChanQuery] = useState("");
   const [category, setCategory] = useState<SpecialCat | string>("all");
   const [selected, setSelected] = useState<M3UItem | null>(null);
-  const [recents, setRecents] = useState<string[]>([]);
+  const [recents, setRecents] = useState<M3UItem[]>([]);
+  const [pinPending, setPinPending] = useState<string | null>(null);
+  const [unlockedAdult, setUnlockedAdult] = useState(false);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const channelListRef = useRef<HTMLDivElement>(null);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const listWrapRef = useRef<HTMLElement>(null);
+
+  useGsapEntrance(headerRef, { y: -20, opacity: 0, duration: 0.5 });
+  useGsapEntrance(sidebarRef, { x: -30, opacity: 0, duration: 0.6, delay: 0.1 });
+  useGsapEntrance(listWrapRef, { y: 20, opacity: 0, duration: 0.6, delay: 0.2 });
+  useGsapEntrance(playerWrapRef, { scale: 0.95, opacity: 0, duration: 0.6, delay: 0.3, ease: "back.out(1.2)" });
+
+  // Floating ambient background
+  useGSAP(
+    () => {
+      gsap.to(".ambient-bubble", {
+        y: "random(-20, 20)",
+        x: "random(-20, 20)",
+        scale: "random(0.9, 1.1)",
+        duration: "random(4, 6)",
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        stagger: 0.5,
+      });
+    },
+    { scope: containerRef }
+  );
+
   // Load recents from storage
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(RECENTS_KEY);
-      if (raw) setRecents(JSON.parse(raw));
-    } catch {}
+    if (typeof window !== "undefined") {
+      const raw = sessionStorage.getItem(RECENTS_KEY);
+      if (raw) {
+        try {
+          setRecents(JSON.parse(raw));
+        } catch {}
+      }
+    }
   }, []);
 
-  // Real categories with counts
+  // Real categories with counts — adult categories sorted last
   const realCats = useMemo(() => {
     const map = new Map<string, number>();
     for (const it of items) map.set(it.group, (map.get(it.group) || 0) + 1);
-    return [...map.entries()]
+    const all = [...map.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
+    const normal = all.filter((c) => !isAdultCategory(c.name));
+    const adult = all.filter((c) => isAdultCategory(c.name));
+    return [...normal, ...adult];
   }, [items]);
 
   const filteredCats = useMemo(() => {
@@ -73,13 +114,27 @@ export function LiveTvScreen({
     return realCats.filter((c) => c.name.toLowerCase().includes(q));
   }, [realCats, catQuery]);
 
+  // Lock adult when switching away
+  useEffect(() => {
+    if (!isAdultCategory(String(category))) {
+      setUnlockedAdult(false);
+    }
+  }, [category]);
+
+  const handleCategoryClick = (name: string) => {
+    if (isAdultCategory(name) && !unlockedAdult) {
+      setPinPending(name);
+    } else {
+      setCategory(name);
+    }
+  };
+
   // Channels for the active category
   const channelsForCategory = useMemo(() => {
     if (category === "all") return items;
     if (category === "favorites") return items.filter((i) => favorites.has(i.id));
     if (category === "recent") {
-      const idx = new Map(items.map((i) => [i.id, i]));
-      return recents.map((id) => idx.get(id)).filter(Boolean) as M3UItem[];
+      return recents;
     }
     return items.filter((i) => i.group === category);
   }, [items, category, favorites, recents]);
@@ -101,8 +156,8 @@ export function LiveTvScreen({
   const selectChannel = (it: M3UItem) => {
     setSelected(it);
     setRecents((prev) => {
-      const next = [it.id, ...prev.filter((id) => id !== it.id)].slice(0, MAX_RECENTS);
-      try { localStorage.setItem(RECENTS_KEY, JSON.stringify(next)); } catch {}
+      const next = [it, ...prev.filter((x) => x.id !== it.id)].slice(0, 20);
+      try { sessionStorage.setItem(RECENTS_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
   };
@@ -125,14 +180,20 @@ export function LiveTvScreen({
 
   const counts = {
     all: items.length,
-    recent: recents.filter((id) => items.some((i) => i.id === id)).length,
+    recent: recents.filter((r) => items.some((i) => i.id === r.id)).length,
     favorites: items.filter((i) => favorites.has(i.id)).length,
   };
 
   return (
-    <div className="flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
+    <div ref={containerRef} className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
+      {/* Ambient background */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="ambient-bubble absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/20 blur-[140px]" />
+        <div className="ambient-bubble absolute bottom-[-160px] left-[-100px] h-[380px] w-[380px] rounded-full bg-primary/15 blur-[140px]" />
+      </div>
+
       {/* Top bar */}
-      <header className="flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
+      <header ref={headerRef} className="relative z-10 flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
         <button
           onClick={onBack}
           aria-label="Voltar"
@@ -166,9 +227,9 @@ export function LiveTvScreen({
       </header>
 
       {/* Main layout - responsive */}
-      <div className="grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-1 sm:grid-cols-[180px_220px_minmax(0,1fr)] md:grid-cols-[260px_320px_minmax(0,1fr)] auto-rows-max md:auto-rows-auto">
+      <div className="relative z-10 grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-1 sm:grid-cols-[200px_240px_minmax(0,1fr)] lg:grid-cols-[230px_280px_minmax(0,1fr)] xl:grid-cols-[260px_320px_minmax(0,1fr)] sm:grid-rows-1">
         {/* Left: categories */}
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto" style={{ maxHeight: '180px' }}>
+        <aside ref={sidebarRef} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto md:row-start-auto md:col-span-auto max-h-[180px] sm:max-h-none sm:h-full">
           <div className="border-b border-white/5 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
@@ -212,7 +273,8 @@ export function LiveTvScreen({
                 label={c.name}
                 count={c.count}
                 active={category === c.name}
-                onClick={() => setCategory(c.name)}
+                isAdult={isAdultCategory(c.name)}
+                onClick={() => handleCategoryClick(c.name)}
               />
             ))}
             {filteredCats.length === 0 && (
@@ -222,7 +284,7 @@ export function LiveTvScreen({
         </aside>
 
         {/* Middle: channel list */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 sm:col-span-auto row-start-3 sm:row-start-auto md:row-start-auto" style={{ maxHeight: '300px' }}>
+        <section ref={listWrapRef} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 sm:col-span-auto row-start-3 sm:row-start-auto md:row-start-auto max-h-[300px] sm:max-h-none sm:h-full">
           <div className="flex-1 overflow-y-auto p-2">
             {visibleChannels.length === 0 ? (
               <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">
@@ -296,8 +358,8 @@ export function LiveTvScreen({
           <div
             ref={playerWrapRef}
             onClick={goFullscreen}
-            className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl"
-            style={{ aspectRatio: '16/9', maxHeight: '120px' }}
+            className="group relative w-full cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shrink-0"
+            style={{ aspectRatio: '16/9', maxHeight: '42%' }}
           >
             <video
               ref={videoRef}
@@ -370,7 +432,7 @@ export function LiveTvScreen({
           )}
 
           {/* EPG grid for the selected channel */}
-          <div className="min-h-0 flex-1 overflow-y-auto row-start-4 col-span-1 sm:col-span-auto sm:row-start-auto md:row-start-auto hidden sm:block" style={{ maxHeight: '200px' }}>
+          <div className="min-h-0 flex-1 overflow-y-auto hidden sm:block">
             <EpgPanel
               streamId={selected?.streamId}
               settingsQuery={settingsQuery}
@@ -378,6 +440,16 @@ export function LiveTvScreen({
           </div>
         </section>
       </div>
+      {pinPending && (
+        <AdultPinModal
+          onUnlock={() => {
+            setUnlockedAdult(true);
+            setCategory(pinPending);
+            setPinPending(null);
+          }}
+          onCancel={() => setPinPending(null)}
+        />
+      )}
     </div>
   );
 }
@@ -408,12 +480,14 @@ function CategoryButton({
   label,
   count,
   active,
+  isAdult,
   onClick,
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   label: string;
   count: number;
   active: boolean;
+  isAdult?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -423,11 +497,14 @@ function CategoryButton({
         "mb-1 flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition focus:outline-none",
         active
           ? "border-amber-400/60 bg-gradient-to-r from-purple-700/70 to-purple-900/70 text-amber-300 shadow-[0_0_0_1px_rgba(251,191,36,0.2)]"
+          : isAdult
+          ? "border-red-900/40 bg-red-950/20 text-white/75 hover:border-red-700/50 hover:bg-red-950/40"
           : "border-white/5 bg-black/20 text-white/85 hover:border-white/15 hover:bg-purple-900/30 focus-visible:border-amber-400/40",
       ].join(" ")}
     >
       <span className="flex min-w-0 items-center gap-2">
         {Icon && <Icon className={`h-4 w-4 ${active ? "text-amber-300" : "text-white/60"}`} />}
+        {isAdult && !Icon && <ShieldAlert className={`h-3.5 w-3.5 shrink-0 ${active ? "text-amber-300" : "text-red-400/70"}`} />}
         <span className="truncate font-semibold uppercase tracking-wide text-[11px]">{label}</span>
       </span>
       <span

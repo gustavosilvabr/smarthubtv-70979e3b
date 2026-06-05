@@ -4,5 +4,5 @@ interface Props {
 }
 
 export function Logo({ className = "h-80 w-auto", alt = "Smart Hub Play TV" }: Props) {
-  return <img src="../public/logo.png" alt={alt} className={className} draggable={false} />;
+  return <img src="/logo.png" alt={alt} className={className} draggable={false} />;
 }

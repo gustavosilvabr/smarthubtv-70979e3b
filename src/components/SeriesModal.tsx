@@ -4,6 +4,9 @@ import type { M3UItem } from "@/types/iptv";
 import type { SeriesShow } from "@/utils/parseEpisode";
 import { parseEpisode } from "@/utils/parseEpisode";
 import { getDisplayImageUrl } from "@/utils/media";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { useRef } from "react";
 
 interface Props {
   show: SeriesShow | null;
@@ -20,9 +23,34 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
   const episodes = currentSeason != null ? (show.seasons.get(currentSeason) ?? []) : [];
   const imageUrl = getDisplayImageUrl(show.logo);
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      // Fade in overlay
+      gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3 });
+      
+      // Spring bounce card
+      gsap.fromTo(
+        cardRef.current,
+        { scale: 0.9, opacity: 0, y: 20 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.5)" }
+      );
+      
+      // Staggered episodes
+      gsap.fromTo(
+        ".episode-item",
+        { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, duration: 0.4, stagger: 0.05, ease: "power2.out", delay: 0.2 }
+      );
+    },
+    { dependencies: [show, currentSeason] }
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 animate-in fade-in">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl bg-card ring-1 ring-border shadow-2xl flex flex-col">
+    <div ref={overlayRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+      <div ref={cardRef} className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-xl bg-card ring-1 ring-border shadow-2xl flex flex-col">
         <div className="flex items-start gap-4 p-5 border-b border-border">
           <div className="h-24 w-16 shrink-0 overflow-hidden rounded bg-secondary">
             {imageUrl ? (
@@ -75,7 +103,7 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
               <button
                 key={`${show.id}-season-${currentSeason}-episode-${ep.id}`}
                 onClick={() => onPlay(ep)}
-                className="flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left hover:border-primary hover:bg-accent transition"
+                className="episode-item flex w-full items-center gap-3 rounded-lg border border-border bg-background p-3 text-left hover:border-primary hover:bg-accent transition"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
                   {info.episode}

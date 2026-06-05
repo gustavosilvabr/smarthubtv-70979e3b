@@ -13,6 +13,7 @@ import { LoadingScreen, type LoadingStage } from "@/components/LoadingScreen";
 import { LiveTvScreen } from "@/components/LiveTvScreen";
 import { MoviesScreen } from "@/components/MoviesScreen";
 import { SeriesScreen } from "@/components/SeriesScreen";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { parseM3U } from "@/utils/parseM3U";
 import { type SeriesShow } from "@/utils/parseEpisode";
 import {
@@ -45,6 +46,7 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(null);
   const [search, setSearch] = useState("");
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
   const [settings, setSettings] = useState<IptvSettings>(DEFAULT_IPTV_SETTINGS);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [playing, setPlaying] = useState<M3UItem | null>(null);
@@ -55,9 +57,9 @@ function Dashboard() {
   // Boot: read storage once on client.
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(FAV_KEY);
+      const raw = sessionStorage.getItem(FAV_KEY);
       if (raw) setFavorites(new Set(JSON.parse(raw)));
-      const rawSettings = localStorage.getItem(IPTV_SETTINGS_KEY);
+      const rawSettings = sessionStorage.getItem(IPTV_SETTINGS_KEY);
       if (rawSettings) {
         const parsed = JSON.parse(rawSettings) as IptvSettings;
         if (parsed?.server && parsed?.username && parsed?.password) {
@@ -68,6 +70,18 @@ function Dashboard() {
     } catch {}
     setBootDone(true);
   }, []);
+
+  // Ctrl+K global search shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        if (stage === "ready") setGlobalSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [stage]);
 
   // When entering loading stage, fetch and animate stages.
   useEffect(() => {
@@ -123,7 +137,7 @@ function Dashboard() {
 
   const handleLogin = (next: IptvSettings) => {
     try {
-      localStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
+      sessionStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
     } catch {}
     setItems([]);
     setSettings(next);
@@ -132,7 +146,7 @@ function Dashboard() {
 
   const saveSettings = (next: IptvSettings) => {
     try {
-      localStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
+      sessionStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
     } catch {}
     setItems([]);
     setPlaying(null);
@@ -144,12 +158,18 @@ function Dashboard() {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem(IPTV_SETTINGS_KEY);
+      // Clear all app data from sessionStorage
+      sessionStorage.removeItem(IPTV_SETTINGS_KEY);
+      sessionStorage.removeItem(FAV_KEY);
+      sessionStorage.removeItem("smarthub:live:recents");
+      sessionStorage.removeItem("smarthub:movies:recents");
+      sessionStorage.removeItem("smarthub:series:recents");
     } catch {}
     setItems([]);
     setView(null);
     setPlaying(null);
     setOpenShow(null);
+    setFavorites(new Set());
     setSettings(DEFAULT_IPTV_SETTINGS);
     setStage("login");
   };
@@ -160,7 +180,7 @@ function Dashboard() {
       if (next.has(id)) next.delete(id);
       else next.add(id);
       try {
-        localStorage.setItem(FAV_KEY, JSON.stringify([...next]));
+        sessionStorage.setItem(FAV_KEY, JSON.stringify([...next]));
       } catch {}
       return next;
     });
@@ -193,7 +213,7 @@ function Dashboard() {
 
   // ---------- Render gates ----------
 
-  // Prevent SSR/hydration mismatch — wait until we've read localStorage.
+  // Prevent SSR/hydration mismatch — wait until we've read sessionStorage.
   if (!bootDone) {
     return <div className="min-h-screen bg-background" />;
   }
@@ -207,19 +227,27 @@ function Dashboard() {
       <LoadingScreen
         stage={loadingStage}
         error={error}
-        onRetry={() => {
-          setError(null);
-          setStage("loading");
-          // re-trigger by bumping settings ref
-          setSettings((s) => ({ ...s }));
-        }}
+        onLogout={handleLogout}
       />
     );
   }
 
   // ---------- HOME ----------
   if (view === null) {
-    return <HomeTiles counts={counts} onSelect={selectHomeTile} />;
+    return (
+      <>
+        <HomeTiles counts={counts} onSelect={selectHomeTile} />
+        {globalSearchOpen && (
+          <GlobalSearch
+            items={items}
+            onSelectLive={(item) => { setGlobalSearchOpen(false); setView("live"); }}
+            onSelectMovie={(item) => { setGlobalSearchOpen(false); setView("movie"); }}
+            onSelectSeries={(item) => { setGlobalSearchOpen(false); setView("series"); }}
+            onClose={() => setGlobalSearchOpen(false)}
+          />
+        )}
+      </>
+    );
   }
 
   if (view === "settings") {

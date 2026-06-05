@@ -1,0 +1,23 @@
+{
+  "folders": [
+    {
+      "name": "SmartHub Web",
+      "path": "."
+    },
+    {
+      "name": "SmartHub Android",
+      "path": "android-app"
+    }
+  ],
+  "settings": {
+    // Evita duplicidade e conflito de indexação do TypeScript
+    "files.exclude": {
+      "android-app": true
+    },
+    // Configura o ESLint para rodar de forma isolada em cada subprojeto
+    "eslint.workingDirectories": [
+      "./",
+      "./android-app"
+    ]
+  }
+}
