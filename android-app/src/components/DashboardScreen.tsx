@@ -63,45 +63,10 @@ export function DashboardScreen({ items, settings, onLogout, onSaveSettings, onR
   }, [items, favorites]);
 
   // 4. Lógica de Navegação / Cliques no Home
-  const handleNavigate = useCallback((target: "live" | "movies" | "series" | "favorites" | "settings") => {
-    if (target === "favorites") {
-      if (favorites.size === 0) {
-        Alert.alert("Favoritos", "Sua lista de favoritos está vazia. Adicione canais, filmes ou séries para vê-los aqui.");
-        return;
-      }
-      Alert.alert(
-        "Ver Favoritos",
-        "Escolha qual seção deseja abrir filtrada pelos seus favoritos:",
-        [
-          {
-            text: "📺 TV Ao Vivo",
-            onPress: () => {
-              setInitialCategory("favorites");
-              setCurrentScreen("live");
-            },
-          },
-          {
-            text: "🎬 Filmes",
-            onPress: () => {
-              setInitialCategory("favorites");
-              setCurrentScreen("movies");
-            },
-          },
-          {
-            text: "🍿 Séries",
-            onPress: () => {
-              setInitialCategory("favorites");
-              setCurrentScreen("series");
-            },
-          },
-          { text: "Cancelar", style: "cancel" },
-        ]
-      );
-    } else {
-      setInitialCategory("all");
-      setCurrentScreen(target);
-    }
-  }, [favorites]);
+  const handleNavigate = useCallback((target: "live" | "movies" | "series" | "settings") => {
+    setInitialCategory("all");
+    setCurrentScreen(target);
+  }, []);
 
   const handleBack = useCallback(() => {
     setCurrentScreen("home");
