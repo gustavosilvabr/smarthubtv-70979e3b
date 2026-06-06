@@ -1,16 +1,8 @@
-<<<<<<< HEAD
 import { useRef } from "react";
 import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
 import { StabilityControls } from "@/components/StabilityControls";
-=======
-import { useRef, useState } from "react";
-import { Activity, Loader2, PictureInPicture2, RotateCcw, X, Zap } from "lucide-react";
-import type { M3UItem } from "@/types/iptv";
-import { useHlsPlayer } from "@/hooks/useHlsPlayer";
-import { PlayerDiagnosticsOverlay } from "./PlayerDiagnosticsOverlay";
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
 interface Props {
   item: M3UItem | null;
@@ -19,7 +11,7 @@ interface Props {
 
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-<<<<<<< HEAD
+
   const {
     loading,
     error,
@@ -30,75 +22,58 @@ export function VideoPlayer({ item, onClose }: Props) {
     setQualityLevel,
     retry,
   } = useHlsPlayer(videoRef, item);
-=======
-  const [lowQuality, setLowQuality] = useState(false);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const { loading, error, retry, diagnostics } = useHlsPlayer(videoRef, item, {
-    lowQuality,
-  });
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
   if (!item) return null;
 
   const statusMessage = bufferStatus || (loading ? "Carregando canal..." : "");
 
+  async function handlePictureInPicture() {
+    const video = videoRef.current;
+    if (!video) return;
+
+    try {
+      const doc = document as Document & {
+        pictureInPictureElement?: Element | null;
+      };
+
+      if (doc.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        return;
+      }
+
+      if (typeof video.requestPictureInPicture === "function") {
+        await video.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.error("[PictureInPicture]", err);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 animate-in fade-in">
       <div className="relative w-full max-w-2xl">
-        <div className="flex items-center justify-between mb-2 sm:mb-3 gap-2">
-          <h2 className="text-sm sm:text-base md:text-lg font-semibold text-foreground line-clamp-1">
+        <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3">
+          <h2 className="line-clamp-1 text-sm font-semibold text-foreground sm:text-base md:text-lg">
             {item.name}
           </h2>
-          <div className="flex gap-1 sm:gap-2 shrink-0">
+
+          <div className="flex shrink-0 gap-1 sm:gap-2">
             <button
-              onClick={() => setLowQuality((v) => !v)}
-              className={`rounded-full p-1.5 sm:p-2 transition ${
-                lowQuality
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary hover:bg-accent"
-              }`}
-              aria-label="Baixa qualidade"
-              title={lowQuality ? "Baixa qualidade ativada" : "Ativar baixa qualidade"}
-            >
-              <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
-            <button
-              onClick={() => setShowDiagnostics((v) => !v)}
-              className={`rounded-full p-1.5 sm:p-2 transition ${
-                showDiagnostics
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary hover:bg-accent"
-              }`}
-              aria-label="Diagnóstico"
-              title="Diagnóstico do player"
-            >
-              <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
-            </button>
-            <button
-              onClick={async () => {
-                const v = videoRef.current;
-                if (!v) return;
-                try {
-                  const doc = document as Document & { pictureInPictureElement?: Element | null };
-                  if (doc.pictureInPictureElement) {
-                    await document.exitPictureInPicture();
-                  } else if (typeof v.requestPictureInPicture === "function") {
-                    await v.requestPictureInPicture();
-                  }
-                } catch (e) {
-                  console.error("[pip]", e);
-                }
-              }}
-              className="rounded-full bg-secondary p-1.5 sm:p-2 hover:bg-accent transition"
+              onClick={handlePictureInPicture}
+              className="rounded-full bg-secondary p-1.5 transition hover:bg-accent sm:p-2"
               aria-label="Picture in Picture"
               title="Picture in Picture"
+              type="button"
             >
               <PictureInPicture2 className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
+
             <button
               onClick={onClose}
-              className="rounded-full bg-secondary p-1.5 sm:p-2 hover:bg-accent transition"
+              className="rounded-full bg-secondary p-1.5 transition hover:bg-accent sm:p-2"
               aria-label="Fechar"
+              title="Fechar"
+              type="button"
             >
               <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
@@ -114,27 +89,25 @@ export function VideoPlayer({ item, onClose }: Props) {
             controlsList="nodownload"
             className="h-full w-full"
           />
-<<<<<<< HEAD
-          {statusMessage && !error && (
-=======
 
-          {loading && !showDiagnostics && (
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
+          {statusMessage && !error && (
             <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
-              <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary" />
+              <div className="flex items-center gap-2 text-xs font-medium sm:text-sm">
+                <Loader2 className="h-4 w-4 animate-spin text-primary sm:h-5 sm:w-5" />
                 {statusMessage}
               </div>
             </div>
           )}
 
-          {error && !showDiagnostics && (
-            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-3 sm:p-6 text-center text-foreground">
+          {error && (
+            <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-3 text-center text-foreground sm:p-6">
               <div className="max-w-lg">
                 <p className="text-xs sm:text-sm md:text-base">{error}</p>
+
                 <button
                   onClick={retry}
-                  className="mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 sm:mt-4 sm:px-4 sm:py-2 sm:text-sm"
+                  type="button"
                 >
                   <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   Tentar novamente
@@ -142,17 +115,8 @@ export function VideoPlayer({ item, onClose }: Props) {
               </div>
             </div>
           )}
-
-          {showDiagnostics && (
-            <PlayerDiagnosticsOverlay
-              diagnostics={diagnostics}
-              lowQuality={lowQuality}
-              onToggleLowQuality={() => setLowQuality((v) => !v)}
-              onClose={() => setShowDiagnostics(false)}
-            />
-          )}
         </div>
-<<<<<<< HEAD
+
         <StabilityControls
           enabled={stabilityConfig.enabled}
           qualityLevel={stabilityConfig.qualityLevel}
@@ -160,10 +124,10 @@ export function VideoPlayer({ item, onClose }: Props) {
           onToggle={toggleStabilityMode}
           onQualityChange={setQualityLevel}
         />
-=======
 
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
-        <p className="mt-1.5 sm:mt-2 text-xs text-muted-foreground line-clamp-1">{item.group}</p>
+        <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground sm:mt-2">
+          {item.group}
+        </p>
       </div>
     </div>
   );

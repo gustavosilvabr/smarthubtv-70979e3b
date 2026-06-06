@@ -22,7 +22,6 @@ function proxied(url: string) {
   return `/api/stream?u=${encodeURIComponent(secureUrl)}`;
 }
 
-<<<<<<< HEAD
 const LIVE_MAX_DRIFT_S = 25;
 const LIVE_EDGE_KEEP_S = 3;
 const LIVE_WATCH_INTERVAL_MS = 3000;
@@ -134,115 +133,6 @@ function jumpToLiveEdge(video: HTMLVideoElement) {
   } catch {}
 }
 
-=======
-const LOAD_TIMEOUT_LIVE_MS = 25_000;
-const LOAD_TIMEOUT_VOD_MS = 60_000;
-const AUTOPLAY_RETRY_MS = 800;
-const ERROR_RETRY_MS = 3_000;
-const MAX_AUTO_RETRIES = 4;
-
-function buildHlsConfig(isLive: boolean, lowQuality: boolean) {
-  return {
-    enableWorker: true,
-    lowLatencyMode: false,
-
-    maxBufferLength: isLive ? 30 : 30,
-    maxMaxBufferLength: isLive ? 90 : 600,
-    backBufferLength: isLive ? 20 : 30,
-    maxBufferSize: 60 * 1000 * 1000,
-    maxBufferHole: 0.5,
-
-    liveSyncDurationCount: isLive ? 6 : 3,
-    liveMaxLatencyDurationCount: isLive ? 20 : 10,
-    maxLiveSyncPlaybackRate: 1,
-
-    startPosition: -1,
-
-    startLevel: 0,
-    capLevelToPlayerSize: !lowQuality,
-    abrEwmaDefaultEstimate: lowQuality ? 500_000 : 1_000_000,
-    abrBandwidthFactor: 0.7,
-    abrBandwidthSafeFactor: 0.6,
-    abrMaxWithRealBitrate: true,
-    testBandwidth: !lowQuality,
-
-    manifestLoadingTimeOut: 15_000,
-    manifestLoadingMaxRetry: 4,
-    manifestLoadingRetryDelay: 1_000,
-    levelLoadingTimeOut: 15_000,
-    levelLoadingMaxRetry: 4,
-    levelLoadingRetryDelay: 1_000,
-    fragLoadingTimeOut: 30_000,
-    fragLoadingMaxRetry: 6,
-    fragLoadingRetryDelay: 1_000,
-    fragLoadingMaxRetryTimeout: 64_000,
-
-    nudgeOffset: 0.2,
-    nudgeMaxRetry: 5,
-    maxStarvationDelay: 10,
-    maxLoadingDelay: 10,
-  };
-}
-
-function buildMpegtsConfig(isLive: boolean) {
-  return {
-    enableWorker: true,
-    enableStashBuffer: true,
-    stashInitialSize: isLive ? 512 : 256,
-    isLive,
-    liveBufferLatencyChasing: false,
-    lazyLoad: false,
-    autoCleanupSourceBuffer: true,
-    autoCleanupMaxBackwardDuration: isLive ? 30 : 60,
-    autoCleanupMinBackwardDuration: isLive ? 15 : 30,
-    fixAudioTimestampGap: true,
-  };
-}
-
-export interface PlayerLevel {
-  index: number;
-  height?: number;
-  width?: number;
-  bitrate: number;
-  name?: string;
-}
-
-export interface PlayerDiagnostics {
-  engine: "hls.js" | "mpegts.js" | "native" | "idle";
-  status: string;
-  bufferAhead: number; // seconds of buffered video ahead of currentTime
-  currentTime: number;
-  currentLevel: number;
-  currentBitrateKbps: number;
-  levels: PlayerLevel[];
-  estimatedBandwidthKbps: number;
-  droppedFrames: number;
-  resolution: string;
-  recentEvents: string[]; // ring buffer of recent log lines
-  fatalError: string | null;
-}
-
-const EMPTY_DIAG: PlayerDiagnostics = {
-  engine: "idle",
-  status: "idle",
-  bufferAhead: 0,
-  currentTime: 0,
-  currentLevel: -1,
-  currentBitrateKbps: 0,
-  levels: [],
-  estimatedBandwidthKbps: 0,
-  droppedFrames: 0,
-  resolution: "—",
-  recentEvents: [],
-  fatalError: null,
-};
-
-export interface UseHlsPlayerOptions {
-  /** Force the lowest available quality level (no ABR upscaling). */
-  lowQuality?: boolean;
-}
-
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 export interface UseHlsPlayerResult {
   loading: boolean;
   error: string;
