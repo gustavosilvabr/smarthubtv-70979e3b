@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { M3UItem } from "@/types/iptv";
 import {
   useStabilityMode,
@@ -37,6 +37,48 @@ const HEAVY_LOW_BUFFER_THRESHOLD_S = 5;
 const HEAVY_CRITICAL_BUFFER_THRESHOLD_S = 2.5;
 
 type StreamFormat = "hls" | "ts";
+
+interface UseHlsPlayerOptions {
+  lowQuality?: boolean;
+}
+
+interface PlayerLevel {
+  index: number;
+  height?: number;
+  width?: number;
+  bitrate: number;
+  name?: string;
+}
+
+interface PlayerDiagnostics {
+  engine: "hls.js" | "mpegts.js" | "native" | "none";
+  status: string;
+  bufferAhead: number;
+  currentTime: number;
+  currentLevel: number;
+  currentBitrateKbps: number;
+  estimatedBandwidthKbps: number;
+  droppedFrames: number;
+  resolution: string;
+  levels: PlayerLevel[];
+  recentEvents: string[];
+  fatalError?: string;
+}
+
+const EMPTY_DIAG: PlayerDiagnostics = {
+  engine: "none",
+  status: "idle",
+  bufferAhead: 0,
+  currentTime: 0,
+  currentLevel: -1,
+  currentBitrateKbps: 0,
+  estimatedBandwidthKbps: 0,
+  droppedFrames: 0,
+  resolution: "—",
+  levels: [],
+  recentEvents: [],
+};
+
 const BUFFER_UI_UPDATE_MS = 5000;
 const RECOVERY_COOLDOWN_MS = 4000;
 const STALL_DOWNGRADE_COOLDOWN_MS = 6000;
@@ -146,7 +188,7 @@ export interface UseHlsPlayerResult {
 }
 
 export function useHlsPlayer(
-  videoRef: React.RefObject<HTMLVideoElement | null>,
+  videoRef: RefObject<HTMLVideoElement | null>,
   item: M3UItem | null,
   options: UseHlsPlayerOptions = {},
 ): UseHlsPlayerResult {
@@ -156,22 +198,19 @@ export function useHlsPlayer(
   const mpegtsRef = useRef<any>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-<<<<<<< HEAD
   const bufferCheckRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const diagTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watcherRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const attemptedFormatsRef = useRef<Set<StreamFormat>>(new Set());
   const autoRetryCountRef = useRef(0);
+  const eventsRef = useRef<string[]>([]);
   const stabilityConfigRef = useRef<StabilityModeConfig>({ enabled: true, qualityLevel: "low" });
   const streamProfileRef = useRef(getStreamPlaybackProfile(item));
   const lastRecoveryRef = useRef(0);
   const lastDowngradeRef = useRef(0);
   const lastBufferUiUpdateRef = useRef(0);
 
-=======
-  const diagTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fallbackAttemptedRef = useRef(false);
-  const autoRetryCountRef = useRef(0);
-  const eventsRef = useRef<string[]>([]);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [bufferStatus, setBufferStatus] = useState("");
@@ -232,13 +271,19 @@ export function useHlsPlayer(
     }
   }, []);
 
+  const clearDiagTimer = useCallback(() => {
+    if (diagTimerRef.current) {
+      clearInterval(diagTimerRef.current);
+      diagTimerRef.current = null;
+    }
+  }, []);
+
   const stopBufferMonitoring = useCallback(() => {
     if (bufferCheckRef.current) {
       clearInterval(bufferCheckRef.current);
       bufferCheckRef.current = null;
     }
   }, []);
-<<<<<<< HEAD
 
   const stopWatcher = useCallback(() => {
     if (watcherRef.current) {
@@ -251,6 +296,7 @@ export function useHlsPlayer(
     stopWatcher();
     stopBufferMonitoring();
     clearRetryTimer();
+    clearDiagTimer();
     if (hlsRef.current) {
       try {
         hlsRef.current.destroy();
@@ -263,7 +309,7 @@ export function useHlsPlayer(
       } catch {}
       mpegtsRef.current = null;
     }
-  }, [stopWatcher, stopBufferMonitoring, clearRetryTimer]);
+  }, [stopWatcher, stopBufferMonitoring, clearRetryTimer, clearDiagTimer]);
 
   const startBufferMonitoring = useCallback(
     (video: HTMLVideoElement, hls: any) => {
@@ -355,18 +401,6 @@ export function useHlsPlayer(
     isStabilityActive,
     videoRef,
   ]);
-=======
-  const clearDiagTimer = useCallback(() => {
-    if (diagTimerRef.current) { clearInterval(diagTimerRef.current); diagTimerRef.current = null; }
-  }, []);
-
-  const destroyPlayers = useCallback(() => {
-    clearRetryTimer();
-    clearDiagTimer();
-    if (hlsRef.current) { try { hlsRef.current.destroy(); } catch {} hlsRef.current = null; }
-    if (mpegtsRef.current) { try { mpegtsRef.current.destroy(); } catch {} mpegtsRef.current = null; }
-  }, [clearRetryTimer, clearDiagTimer]);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
   useEffect(() => {
     if (!item || !videoRef.current) return;
@@ -380,6 +414,7 @@ export function useHlsPlayer(
     const fallbackUrl = item.fallbackUrl ? proxied(item.fallbackUrl) : undefined;
     const isLive = item.type === "live";
     let disposed = false;
+    const getDisposed = () => disposed;
 
     eventsRef.current = [];
     setDiagnostics({ ...EMPTY_DIAG, status: "loading" });
@@ -408,7 +443,6 @@ export function useHlsPlayer(
       clearLoadTimeout();
       setLoading(false);
       setError("");
-<<<<<<< HEAD
       if (isLive && !hlsRef.current && !mpegtsRef.current && !watcherRef.current) {
         watcherRef.current = startLiveEdgeWatcher(
           video,
@@ -426,36 +460,20 @@ export function useHlsPlayer(
           setLoading(false);
           setError("Canal indisponível no momento. Tente outro canal.");
         }
-=======
-      setStatus("playing");
-      pushEvent("✅ playing");
-    };
-
-    const autoRetryPlay = (v: HTMLVideoElement, fallback?: () => void) => {
-      clearRetryTimer();
-      if (autoRetryCountRef.current >= MAX_AUTO_RETRIES) {
-        if (fallback) { fallback(); return; }
-        setLoading(false);
-        setError("Canal indisponível no momento. Tente outro canal.");
-        setStatus("error");
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
         return;
       }
       autoRetryCountRef.current++;
       pushEvent(`↻ autoplay retry ${autoRetryCountRef.current}/${MAX_AUTO_RETRIES}`);
       retryTimerRef.current = setTimeout(() => {
         if (disposed) return;
-        v.play().catch(() => autoRetryPlay(v, fallback));
+        video.play().catch(() => autoRetryPlay(video, fallback));
       }, AUTOPLAY_RETRY_MS);
     };
 
     const showError = (msg: string, autoRetry = false) => {
       clearLoadTimeout();
-<<<<<<< HEAD
       stopWatcher();
       stopBufferMonitoring();
-=======
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
       if (autoRetry && autoRetryCountRef.current < MAX_AUTO_RETRIES) {
         clearRetryTimer();
         pushEvent(`↻ silent retry in ${ERROR_RETRY_MS}ms`);
@@ -551,7 +569,6 @@ export function useHlsPlayer(
       startTimeout(() => showError("Não foi possível reproduzir este canal.", true));
       video.src = url;
       video.load();
-<<<<<<< HEAD
       beginPlayback(() => {
         if (isLive) {
           watcherRef.current = startLiveEdgeWatcher(
@@ -581,10 +598,6 @@ export function useHlsPlayer(
       } else {
         showError("Canal temporariamente indisponível.", true);
       }
-=======
-      video.play().catch(() => autoRetryPlay(video));
-      startDiagPoll();
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
     };
 
     const playTs = async (url: string) => {
@@ -594,10 +607,11 @@ export function useHlsPlayer(
         const mod = await import("mpegts.js");
         if (disposed) return;
         const mpegts = mod.default;
-<<<<<<< HEAD
         startTimeout(() => tryAlternateStream());
 
         if (mpegts.isSupported()) {
+          setDiagnostics((d) => ({ ...d, engine: "mpegts.js" }));
+          pushEvent("engine: mpegts.js");
           const player = mpegts.createPlayer(
             { type: "mpegts", isLive, url, cors: true } as any,
             buildMpegtsConfig(isLive, profile.heavy),
@@ -617,25 +631,6 @@ export function useHlsPlayer(
               );
             }
           });
-=======
-        setDiagnostics((d) => ({ ...d, engine: "mpegts.js" }));
-        pushEvent("engine: mpegts.js");
-        startTimeout(() => showError("Canal temporariamente indisponível.", true));
-        if (mpegts.isSupported()) {
-          const player = mpegts.createPlayer(
-            { type: "mpegts", isLive, url, cors: true } as any,
-            buildMpegtsConfig(isLive),
-          );
-          mpegtsRef.current = player;
-          player.on(mpegts.Events.ERROR, (type: any, detail: any) => {
-            pushEvent(`✖ mpegts ${type} ${detail}`);
-            showError("Erro ao carregar o canal.", true);
-          });
-          player.attachMediaElement(video);
-          player.load();
-          Promise.resolve(player.play()).catch(() => autoRetryPlay(video));
-          startDiagPoll();
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
         } else {
           playNative(url);
         }
@@ -645,19 +640,10 @@ export function useHlsPlayer(
       }
     };
 
-<<<<<<< HEAD
     const startHlsPlayback = (hls: any) => {
       applyStreamQuality(hls);
       if (isStabilityActive()) {
         startBufferMonitoring(video, hls);
-=======
-    const tryFallback = () => {
-      if (fallbackUrl && !fallbackAttemptedRef.current) {
-        pushEvent("↪ switching to .ts fallback");
-        playTs(fallbackUrl);
-      } else {
-        showError("Canal temporariamente indisponível.", true);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
       }
       beginPlayback(() => {
         if (isLive) {
@@ -677,13 +663,7 @@ export function useHlsPlayer(
         const mod = await import("hls.js");
         if (disposed) return;
         const Hls = mod.default;
-<<<<<<< HEAD
         startTimeout(tryAlternateStream);
-=======
-        setDiagnostics((d) => ({ ...d, engine: "hls.js" }));
-        pushEvent("engine: hls.js");
-        startTimeout(tryFallback);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
         if (!Hls.isSupported()) {
           if (video.canPlayType("application/vnd.apple.mpegurl")) playNative(url);
@@ -692,19 +672,16 @@ export function useHlsPlayer(
           return;
         }
 
-<<<<<<< HEAD
         const useStability = profile.forceStability || stabilityConfigRef.current.enabled;
         const hlsConfig = useStability
           ? buildStabilityModeHlsConfig(isLive, profile.heavy, profile.hlsBufferScale)
           : buildStandardHlsConfig(isLive);
 
+        setDiagnostics((d) => ({ ...d, engine: "hls.js" }));
+        pushEvent("engine: hls.js");
         const hls = new Hls(hlsConfig);
-=======
-        const hls = new Hls(buildHlsConfig(isLive, lowQuality));
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
         hlsRef.current = hls;
 
-<<<<<<< HEAD
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           startHlsPlayback(hls);
         });
@@ -713,27 +690,11 @@ export function useHlsPlayer(
           if (isStabilityActive()) {
             applyStreamQuality(hls);
           }
-=======
-        hls.on(Hls.Events.MANIFEST_PARSED, (_: any, data: any) => {
-          const count = data?.levels?.length ?? 0;
-          pushEvent(`manifest parsed: ${count} quality levels`);
-          if (lowQuality && count > 0) {
-            // Cap ABR to the lowest level and pin currentLevel there.
-            hls.autoLevelCapping = 0;
-            hls.currentLevel = 0;
-            pushEvent("🔒 quality locked to level 0 (lowest)");
-          }
-          video.play().catch(() => autoRetryPlay(video, tryFallback));
-        });
-
-        hls.on(Hls.Events.LEVEL_SWITCHED, (_: any, data: any) => {
-          pushEvent(`level → ${data.level}`);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
         });
 
         let mediaErrorCount = 0;
         hls.on(Hls.Events.ERROR, (_: any, data: any) => {
-<<<<<<< HEAD
+          pushEvent(`${data.fatal ? "fatal" : "warn"} ${data.type || ""} ${data.details || ""}`.trim());
           if (!data.fatal) return;
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
             setTimeout(() => {
@@ -742,24 +703,10 @@ export function useHlsPlayer(
                 hls.startLoad();
               }
             }, 500);
-=======
-          const tag = `${data.type}/${data.details}`;
-          if (!data.fatal) {
-            // Silent except for CORS-ish hints
-            if (/manifestLoadError|levelLoadError|fragLoadError/i.test(data.details || "")) {
-              pushEvent(`⚠ ${tag} (non-fatal)`);
-            }
-            return;
-          }
-          pushEvent(`✖ FATAL ${tag}`);
-          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-            setTimeout(() => { if (!disposed) { try { hls.startLoad(); } catch {} } }, 700);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
             return;
           }
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
             mediaErrorCount++;
-<<<<<<< HEAD
             if (mediaErrorCount <= 2) {
               hls.recoverMediaError();
               return;
@@ -768,25 +715,15 @@ export function useHlsPlayer(
               mediaErrorCount = 0;
               return;
             }
-=======
-            if (mediaErrorCount <= 2) { try { hls.recoverMediaError(); } catch {} return; }
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
           }
           tryAlternateStream();
         });
 
-<<<<<<< HEAD
         hls.loadSource(url);
         hls.attachMedia(video);
       } catch (e) {
         console.error("hls.js load failed", e);
         tryAlternateStream();
-=======
-        startDiagPoll();
-      } catch (e) {
-        pushEvent(`✖ hls.js load failed: ${(e as Error).message}`);
-        tryFallback();
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
       }
     };
 
@@ -804,12 +741,12 @@ export function useHlsPlayer(
     setBufferTime(0);
     attemptedFormatsRef.current = new Set();
     autoRetryCountRef.current = 0;
-<<<<<<< HEAD
     lastRecoveryRef.current = 0;
     lastDowngradeRef.current = 0;
 
     video.onplaying = markPlaying;
     video.onerror = tryAlternateStream;
+    startDiagPoll();
 
     if (profile.preferTsFallback && fallbackUrl) {
       setBufferStatus("Carregando Full HD (stream direto)...");
@@ -817,15 +754,6 @@ export function useHlsPlayer(
     } else if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8")) {
       playWithHls(streamUrl);
     } else if (/\.ts(\?|$)/i.test(streamUrl) || isLive) {
-=======
-    video.onplaying = markPlaying;
-    video.onerror = () => {
-      pushEvent(`✖ video element error code=${video.error?.code ?? "?"}`);
-      tryFallback();
-    };
-
-    if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8") || isLive) {
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
       playWithHls(streamUrl);
     } else {
       playNative(streamUrl);
@@ -835,12 +763,9 @@ export function useHlsPlayer(
       disposed = true;
       clearLoadTimeout();
       clearRetryTimer();
-<<<<<<< HEAD
+      clearDiagTimer();
       stopWatcher();
       stopBufferMonitoring();
-=======
-      clearDiagTimer();
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
       destroyPlayers();
       video.onplaying = null;
       video.onerror = null;
@@ -849,7 +774,6 @@ export function useHlsPlayer(
       video.removeEventListener("canplay", onCanPlay);
       try { video.pause(); } catch {}
       video.removeAttribute("src");
-<<<<<<< HEAD
       video.load();
       setBufferStatus("");
     };
@@ -858,6 +782,7 @@ export function useHlsPlayer(
     attempt,
     clearLoadTimeout,
     clearRetryTimer,
+    clearDiagTimer,
     destroyPlayers,
     stopWatcher,
     stopBufferMonitoring,
@@ -866,11 +791,6 @@ export function useHlsPlayer(
     isStabilityActive,
     videoRef,
   ]);
-=======
-      try { video.load(); } catch {}
-    };
-  }, [item, attempt, lowQuality, clearLoadTimeout, clearRetryTimer, clearDiagTimer, destroyPlayers, videoRef, pushEvent]);
->>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
   return {
     loading,
