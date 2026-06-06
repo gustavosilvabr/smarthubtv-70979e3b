@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -85,13 +86,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
     ],
-    scripts: [
-      {
-        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5176993182609305",
-        async: true,
-        crossOrigin: "anonymous",
-      },
-    ],
+    // AdSense is injected client-side after hydration (see RootComponent)
+    // to avoid hydration mismatches from auto-injected <ins> tags.
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -115,6 +111,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (document.getElementById("adsbygoogle-js")) return;
+    const s = document.createElement("script");
+    s.id = "adsbygoogle-js";
+    s.async = true;
+    s.crossOrigin = "anonymous";
+    s.src =
+      "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5176993182609305";
+    document.head.appendChild(s);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

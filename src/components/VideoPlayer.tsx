@@ -1,8 +1,16 @@
+<<<<<<< HEAD
 import { useRef } from "react";
 import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
 import { StabilityControls } from "@/components/StabilityControls";
+=======
+import { useRef, useState } from "react";
+import { Activity, Loader2, PictureInPicture2, RotateCcw, X, Zap } from "lucide-react";
+import type { M3UItem } from "@/types/iptv";
+import { useHlsPlayer } from "@/hooks/useHlsPlayer";
+import { PlayerDiagnosticsOverlay } from "./PlayerDiagnosticsOverlay";
+>>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
 interface Props {
   item: M3UItem | null;
@@ -11,6 +19,7 @@ interface Props {
 
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+<<<<<<< HEAD
   const {
     loading,
     error,
@@ -21,6 +30,13 @@ export function VideoPlayer({ item, onClose }: Props) {
     setQualityLevel,
     retry,
   } = useHlsPlayer(videoRef, item);
+=======
+  const [lowQuality, setLowQuality] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const { loading, error, retry, diagnostics } = useHlsPlayer(videoRef, item, {
+    lowQuality,
+  });
+>>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
 
   if (!item) return null;
 
@@ -34,6 +50,30 @@ export function VideoPlayer({ item, onClose }: Props) {
             {item.name}
           </h2>
           <div className="flex gap-1 sm:gap-2 shrink-0">
+            <button
+              onClick={() => setLowQuality((v) => !v)}
+              className={`rounded-full p-1.5 sm:p-2 transition ${
+                lowQuality
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary hover:bg-accent"
+              }`}
+              aria-label="Baixa qualidade"
+              title={lowQuality ? "Baixa qualidade ativada" : "Ativar baixa qualidade"}
+            >
+              <Zap className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
+            <button
+              onClick={() => setShowDiagnostics((v) => !v)}
+              className={`rounded-full p-1.5 sm:p-2 transition ${
+                showDiagnostics
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary hover:bg-accent"
+              }`}
+              aria-label="Diagnóstico"
+              title="Diagnóstico do player"
+            >
+              <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
             <button
               onClick={async () => {
                 const v = videoRef.current;
@@ -64,6 +104,7 @@ export function VideoPlayer({ item, onClose }: Props) {
             </button>
           </div>
         </div>
+
         <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black shadow-2xl ring-1 ring-border">
           <video
             ref={videoRef}
@@ -73,7 +114,12 @@ export function VideoPlayer({ item, onClose }: Props) {
             controlsList="nodownload"
             className="h-full w-full"
           />
+<<<<<<< HEAD
           {statusMessage && !error && (
+=======
+
+          {loading && !showDiagnostics && (
+>>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
             <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
               <div className="flex items-center gap-2 text-xs sm:text-sm font-medium">
                 <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin text-primary" />
@@ -81,7 +127,8 @@ export function VideoPlayer({ item, onClose }: Props) {
               </div>
             </div>
           )}
-          {error && (
+
+          {error && !showDiagnostics && (
             <div className="absolute inset-x-0 bottom-4 top-12 z-30 flex items-center justify-center bg-background/90 p-3 sm:p-6 text-center text-foreground">
               <div className="max-w-lg">
                 <p className="text-xs sm:text-sm md:text-base">{error}</p>
@@ -95,7 +142,17 @@ export function VideoPlayer({ item, onClose }: Props) {
               </div>
             </div>
           )}
+
+          {showDiagnostics && (
+            <PlayerDiagnosticsOverlay
+              diagnostics={diagnostics}
+              lowQuality={lowQuality}
+              onToggleLowQuality={() => setLowQuality((v) => !v)}
+              onClose={() => setShowDiagnostics(false)}
+            />
+          )}
         </div>
+<<<<<<< HEAD
         <StabilityControls
           enabled={stabilityConfig.enabled}
           qualityLevel={stabilityConfig.qualityLevel}
@@ -103,6 +160,9 @@ export function VideoPlayer({ item, onClose }: Props) {
           onToggle={toggleStabilityMode}
           onQualityChange={setQualityLevel}
         />
+=======
+
+>>>>>>> ab24b7de1b950c0cf2220462dc9871eebe370714
         <p className="mt-1.5 sm:mt-2 text-xs text-muted-foreground line-clamp-1">{item.group}</p>
       </div>
     </div>
