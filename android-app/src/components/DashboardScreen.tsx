@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Alert } from "react-native";
+import { View, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { M3UItem } from "../utils/api";
+import { M3UItem } from "../types/iptv";
 import { IptvSettings, FAV_KEY } from "../utils/settings";
 import { HomeScreen } from "./HomeScreen";
-import { LiveTvScreen } from "./LiveTvScreen";
-import { MoviesScreen } from "./MoviesScreen";
-import { SeriesScreen } from "./SeriesScreen";
 import { SettingsScreen } from "./SettingsScreen";
+import { VideoPlayer } from "./VideoPlayer";
+import { DashboardLayout } from "./DashboardLayout";
+import { MobileSidebar } from "./MobileSidebar";
+import { MobileHeader } from "./MobileHeader";
+import { ContentGrid } from "./ContentGrid";
+import { SeriesEpisodeModal } from "./SeriesEpisodeModal";
 
 interface Props {
   items: M3UItem[];
@@ -17,14 +20,22 @@ interface Props {
   onRefresh: () => void;
 }
 
-type ScreenType = "home" | "live" | "movies" | "series" | "settings";
+type ScreenType = "home" | "dashboard" | "settings";
+type ViewType = "live" | "movies" | "series";
+
+interface Episode {
+  id: string;
+  title: string;
+  url: string;
+  season: number;
+  episodeNum: string;
+}
 
 export function DashboardScreen({ items, settings, onLogout, onSaveSettings, onRefresh }: Props) {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>("home");
-  const [initialCategory, setInitialCategory] = useState<string>("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
-  // 1. Carregar favoritos ao montar
+  // Load favorites on mount
   useEffect(() => {
     AsyncStorage.getItem(FAV_KEY).then((raw) => {
       if (raw) {
@@ -35,8 +46,7 @@ export function DashboardScreen({ items, settings, onLogout, onSaveSettings, onR
     });
   }, []);
 
-  // 2. Alternar Favorito
-  const toggleFavorite = useCallback(async (id: string) => {
+  const toggleFavorite = useCallback((id: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -49,7 +59,6 @@ export function DashboardScreen({ items, settings, onLogout, onSaveSettings, onR
     });
   }, []);
 
-  // 3. Contadores
   const counts = useMemo(() => {
     let live = 0;
     let movie = 0;
@@ -62,74 +71,80 @@ export function DashboardScreen({ items, settings, onLogout, onSaveSettings, onR
     return { live, movie, series, favorites: favorites.size };
   }, [items, favorites]);
 
-  // 4. Lógica de Navegação / Cliques no Home
-  const handleNavigate = useCallback((target: "live" | "movies" | "series" | "settings") => {
-    setInitialCategory("all");
-    setCurrentScreen(target);
-  }, []);
-
-  const handleBack = useCallback(() => {
+  const goHome = useCallback(() => {
     setCurrentScreen("home");
   }, []);
 
-  // 5. Renderizar Tela Ativa
-  switch (currentScreen) {
-    case "live":
-      return (
-        <LiveTvScreen
-          items={items}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
-          onBack={handleBack}
-          settings={settings}
-          initialCategory={initialCategory}
-        />
-      );
-    case "movies":
-      return (
-        <MoviesScreen
-          items={items}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
-          onBack={handleBack}
-          initialCategory={initialCategory}
-        />
-      );
-    case "series":
-      return (
-        <SeriesScreen
-          items={items}
-          favorites={favorites}
-          onToggleFavorite={toggleFavorite}
-          onBack={handleBack}
-          settings={settings}
-          initialCategory={initialCategory}
-        />
-      );
-    case "settings":
-      return (
-        <SettingsScreen
-          settings={settings}
-          onSave={onSaveSettings}
-          onBack={handleBack}
-          onLogout={onLogout}
-          liveCount={counts.live}
-          movieCount={counts.movie}
-          seriesCount={counts.series}
-          onRefresh={onRefresh}
-        />
-      );
-    case "home":
-    default:
-      return (
-        <HomeScreen
-          liveCount={counts.live}
-          movieCount={counts.movie}
-          seriesCount={counts.series}
-          favoritesCount={counts.favorites}
-          onNavigate={handleNavigate}
-          onLogout={onLogout}
-        />
-      );
+  // HOME screen
+  if (currentScreen === "home") {
+    return (
+      <HomeScreen
+        liveCount={counts.live}
+        movieCount={counts.movie}
+        seriesCount={counts.series}
+        favoritesCount={counts.favorites}
+        onNavigate={(target) => setCurrentScreen(target)}
+        onLogout={onLogout}
+      />
+    );
   }
+
+  // SETTINGS screen
+  if (currentScreen === "settings") {
+    return (
+      <SettingsScreen
+        settings={settings}
+        onSave={onSaveSettings}
+        onBack={goHome}
+        onLogout={onLogout}
+        liveCount={counts.live}
+        movieCount={counts.movie}
+        seriesCount={counts.series}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
+  // LIVE TV screen
+  if (currentScreen === "live") {
+    const liveItems = items.filter((i) => i.type === "live");
+    return (
+      <LiveTvScreen
+        items={liveItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        onBack={goHome}
+        settings={settings}
+      />
+    );
+  }
+
+  // MOVIES screen
+  if (currentScreen === "movies") {
+    const movieItems = items.filter((i) => i.type === "movie");
+    return (
+      <MoviesScreen
+        items={movieItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        onBack={goHome}
+      />
+    );
+  }
+
+  // SERIES screen
+  if (currentScreen === "series") {
+    const seriesItems = items.filter((i) => i.type === "series");
+    return (
+      <SeriesScreen
+        items={seriesItems}
+        favorites={favorites}
+        onToggleFavorite={toggleFavorite}
+        onBack={goHome}
+        settings={settings}
+      />
+    );
+  }
+
+  return null;
 }

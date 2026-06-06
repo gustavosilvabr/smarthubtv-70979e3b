@@ -8,8 +8,9 @@ import {
   FlatList,
   Image,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
-import { ChevronLeft, Film, Search, Heart, LayoutGrid, Star } from "lucide-react-native";
+import { ChevronLeft, Film, Search, Heart, LayoutGrid, Star, Play } from "lucide-react-native";
 import { AmbientBackground } from "./AmbientBackground";
 import { M3UItem } from "../utils/api";
 import { matchesSearch } from "../utils/string";
@@ -49,6 +50,17 @@ function sortCategories(cats: { name: string; count: number }[]) {
 }
 
 export function MoviesScreen({ items, favorites, onToggleFavorite, onBack, initialCategory = "all" }: Props) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isMobile = width < 768;
+
+  const numColumns = useMemo(() => {
+    if (isMobile && !isLandscape) return 2;
+    if (isMobile) return 3;
+    if (isLandscape) return 4;
+    return 4;
+  }, [isMobile, isLandscape]);
+
   const movies = useMemo(() => items.filter((i) => i.type === "movie"), [items]);
 
   const [category, setCategory] = useState<"all" | "favorites" | string>(initialCategory);
@@ -92,58 +104,60 @@ export function MoviesScreen({ items, favorites, onToggleFavorite, onBack, initi
   return (
     <View style={styles.container}>
       <AmbientBackground />
-      <View style={styles.layout}>
+      <View style={[styles.layout, isMobile && !isLandscape && styles.layoutMobile]}>
 
-        {/* ===== CATEGORIAS ===== */}
-        <View style={styles.catPanel}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.backText}>Voltar</Text>
-          </TouchableOpacity>
+        {/* ===== CATEGORIAS (Desktop) ===== */}
+        {(!isMobile || isLandscape) && (
+          <View style={[styles.catPanel, isMobile && styles.catPanelMobile]}>
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.backText}>Voltar</Text>
+            </TouchableOpacity>
 
-          <View style={styles.sectionHeader}>
-            <Film size={14} color="#fb923c" />
-            <Text style={styles.sectionTitle}>FILMES</Text>
-          </View>
+            <View style={styles.sectionHeader}>
+              <Film size={14} color="#fb923c" />
+              <Text style={styles.sectionTitle}>FILMES</Text>
+            </View>
 
-          <View style={styles.searchBox}>
-            <Search size={12} color="rgba(255,255,255,0.4)" />
-            <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
-          </View>
+            <View style={styles.searchBox}>
+              <Search size={12} color="rgba(255,255,255,0.4)" />
+              <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
+            </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
-            {[
-              { id: "all", label: "Todos", count: movies.length, icon: LayoutGrid },
-              { id: "favorites", label: "Favoritos", count: favorites.size, icon: Heart },
-            ].map(({ id, label, count, icon: Icon }) => (
-              <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => handleCatChange(id)}>
-                <Icon size={13} color={category === id ? "#fb923c" : "rgba(255,255,255,0.5)"} />
-                <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
-                <Text style={styles.catCount}>{count}</Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.divider} />
-
-            {filteredCats.map((c, i) => {
-              const isPriority = i < 4;
-              return (
-                <TouchableOpacity
-                  key={c.name}
-                  style={[styles.catBtn, category === c.name && styles.catBtnActive]}
-                  onPress={() => handleCatChange(c.name)}
-                >
-                  {isPriority && <Star size={10} color="#fb923c" fill="#fb923c" />}
-                  <Text style={[styles.catText, category === c.name && styles.catTextActive, isPriority && { color: "rgba(251,146,60,0.85)" }]} numberOfLines={1}>{c.name}</Text>
-                  <Text style={styles.catCount}>{c.count}</Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
+              {[
+                { id: "all", label: "Todos", count: movies.length, icon: LayoutGrid },
+                { id: "favorites", label: "Favoritos", count: favorites.size, icon: Heart },
+              ].map(({ id, label, count, icon: Icon }) => (
+                <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => handleCatChange(id)}>
+                  <Icon size={13} color={category === id ? "#fb923c" : "rgba(255,255,255,0.5)"} />
+                  <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
+                  <Text style={styles.catCount}>{count}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+              ))}
+
+              <View style={styles.divider} />
+
+              {filteredCats.map((c, i) => {
+                const isPriority = i < 4;
+                return (
+                  <TouchableOpacity
+                    key={c.name}
+                    style={[styles.catBtn, category === c.name && styles.catBtnActive]}
+                    onPress={() => handleCatChange(c.name)}
+                  >
+                    {isPriority && <Star size={10} color="#fb923c" fill="#fb923c" />}
+                    <Text style={[styles.catText, category === c.name && styles.catTextActive, isPriority && { color: "rgba(251,146,60,0.85)" }]} numberOfLines={1}>{c.name}</Text>
+                    <Text style={styles.catCount}>{c.count}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ===== GRADE DE FILMES ===== */}
-        <View style={styles.gridPanel}>
+        <View style={[styles.gridPanel, isMobile && styles.gridPanelMobile]}>
           <View style={styles.searchBox}>
             <Search size={12} color="rgba(255,255,255,0.4)" />
             <TextInput
@@ -158,7 +172,7 @@ export function MoviesScreen({ items, favorites, onToggleFavorite, onBack, initi
           <FlatList
             data={filteredMovies.slice(0, visibleCount)}
             keyExtractor={(m) => m.id}
-            numColumns={4}
+            numColumns={numColumns}
             showsVerticalScrollIndicator={false}
             onEndReached={() => setVisibleCount((v) => v + 60)}
             onEndReachedThreshold={0.5}
@@ -191,36 +205,39 @@ export function MoviesScreen({ items, favorites, onToggleFavorite, onBack, initi
           />
         </View>
 
-        {/* ===== DETALHES DO FILME ===== */}
-        <View style={styles.detailPanel}>
-          {preview ? (
-            <>
-              {preview.logo
-                ? <Image source={{ uri: preview.logo }} style={styles.detailPoster} resizeMode="cover" />
-                : <View style={styles.detailPosterFallback}><Film size={48} color="rgba(255,255,255,0.1)" /></View>
-              }
-              <Text style={styles.detailTitle} numberOfLines={3}>{preview.name}</Text>
-              <Text style={styles.detailCategory} numberOfLines={1}>{preview.group}</Text>
+        {/* ===== DETALHES DO FILME (Desktop) ===== */}
+        {(!isMobile || isLandscape) && (
+          <View style={styles.detailPanel}>
+            {preview ? (
+              <>
+                {preview.logo
+                  ? <Image source={{ uri: preview.logo }} style={styles.detailPoster} resizeMode="cover" />
+                  : <View style={styles.detailPosterFallback}><Film size={48} color="rgba(255,255,255,0.1)" /></View>
+                }
+                <Text style={styles.detailTitle} numberOfLines={3}>{preview.name}</Text>
+                <Text style={styles.detailCategory} numberOfLines={1}>{preview.group}</Text>
 
-              <TouchableOpacity style={styles.playBtn} onPress={() => setPlaying(preview)} activeOpacity={0.85}>
-                <Text style={styles.playBtnText}>▶  ASSISTIR</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.favBtn}
-                onPress={() => onToggleFavorite(preview.id)}
-                activeOpacity={0.85}
-              >
-                <Heart size={14} color={favorites.has(preview.id) ? "#f43f5e" : "rgba(255,255,255,0.6)"} fill={favorites.has(preview.id) ? "#f43f5e" : "transparent"} />
-                <Text style={styles.favBtnText}>{favorites.has(preview.id) ? "Remover Favorito" : "Adicionar Favorito"}</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={styles.detailEmpty}>
-              <Film size={36} color="rgba(255,255,255,0.08)" />
-              <Text style={styles.detailEmptyText}>Selecione um filme</Text>
-            </View>
-          )}
-        </View>
+                <TouchableOpacity style={styles.playBtn} onPress={() => setPlaying(preview)} activeOpacity={0.85}>
+                  <Play size={14} color="#000" />
+                  <Text style={styles.playBtnText}>ASSISTIR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.favBtn}
+                  onPress={() => onToggleFavorite(preview.id)}
+                  activeOpacity={0.85}
+                >
+                  <Heart size={14} color={favorites.has(preview.id) ? "#f43f5e" : "rgba(255,255,255,0.6)"} fill={favorites.has(preview.id) ? "#f43f5e" : "transparent"} />
+                  <Text style={styles.favBtnText}>{favorites.has(preview.id) ? "Remover" : "Favoritar"}</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.detailEmpty}>
+                <Film size={36} color="rgba(255,255,255,0.08)" />
+                <Text style={styles.detailEmptyText}>Selecione um filme</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {playing && <VideoPlayer item={playing} onClose={() => setPlaying(null)} />}
@@ -273,6 +290,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.05)", marginVertical: 8 },
 
   gridPanel: { flex: 1, padding: 10 },
+  gridPanelMobile: { padding: 8 },
   movieCard: {
     flex: 1,
     borderRadius: 10,
@@ -280,7 +298,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
-    maxWidth: "24%",
   },
   movieCardActive: { borderColor: "#fb923c", backgroundColor: "rgba(251,146,60,0.08)" },
   moviePoster: { width: "100%", aspectRatio: 0.67 },
@@ -314,12 +331,15 @@ const styles = StyleSheet.create({
   detailTitle: { fontSize: 13, fontWeight: "bold", color: "#fff", textAlign: "center", marginBottom: 4 },
   detailCategory: { fontSize: 10, color: "#fb923c", marginBottom: 14, textAlign: "center" },
   playBtn: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
     backgroundColor: "#fb923c",
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 10,
     width: "100%",
-    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
     shadowColor: "#fb923c",
     shadowOffset: { width: 0, height: 4 },
@@ -342,4 +362,8 @@ const styles = StyleSheet.create({
   favBtnText: { fontSize: 11, color: "rgba(255,255,255,0.6)" },
   detailEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   detailEmptyText: { fontSize: 12, color: "rgba(255,255,255,0.2)" },
+
+  // Mobile Styles
+  layoutMobile: { flexDirection: "column", padding: 0 },
+  catPanelMobile: { width: "100%", borderRightWidth: 0, borderBottomWidth: 1, maxHeight: "25%" },
 });

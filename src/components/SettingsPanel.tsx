@@ -1,17 +1,27 @@
 import { FormEvent, useState } from "react";
 import { ArrowLeft, Loader2, LogOut, Save, Server } from "lucide-react";
+import { OlheiroAtivoDashboard } from "@/components/OlheiroAtivoDashboard";
+import type { M3UItem } from "@/types/iptv";
 import type { IptvSettings } from "@/utils/iptvSettings";
 import { normalizeIptvSettings } from "@/utils/iptvSettings";
 
 interface Props {
   settings: IptvSettings;
   loading: boolean;
+  liveItems?: M3UItem[];
   onSave: (settings: IptvSettings) => void;
   onHome: () => void;
   onLogout?: () => void;
 }
 
-export function SettingsPanel({ settings, loading, onSave, onHome, onLogout }: Props) {
+export function SettingsPanel({
+  settings,
+  loading,
+  liveItems = [],
+  onSave,
+  onHome,
+  onLogout,
+}: Props) {
   const [form, setForm] = useState(settings);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -74,7 +84,11 @@ export function SettingsPanel({ settings, loading, onSave, onHome, onLogout }: P
                 disabled={loading}
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
                 Salvar e atualizar
               </button>
               <button
@@ -95,6 +109,10 @@ export function SettingsPanel({ settings, loading, onSave, onHome, onLogout }: P
               )}
             </div>
           </form>
+        </div>
+
+        <div className="mt-6">
+          <OlheiroAtivoDashboard liveItems={liveItems} serverUrl={settings.server} />
         </div>
       </div>
     </div>

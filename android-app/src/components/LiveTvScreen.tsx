@@ -9,6 +9,8 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import {
   ChevronLeft,
@@ -18,6 +20,7 @@ import {
   LayoutGrid,
   Clock,
   Calendar,
+  Play,
 } from "lucide-react-native";
 import { AmbientBackground } from "./AmbientBackground";
 import { M3UItem, fetchChannelEpg, EpgProgram } from "../utils/api";
@@ -46,6 +49,10 @@ function formatTime(ts: number) {
 }
 
 export function LiveTvScreen({ items, favorites, onToggleFavorite, onBack, settings, initialCategory = "all" }: Props) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isMobile = width < 768;
+
   const [category, setCategory] = useState<SpecialCat | string>(initialCategory);
   const [catQuery, setCatQuery] = useState("");
   const [chanQuery, setChanQuery] = useState("");
@@ -55,6 +62,7 @@ export function LiveTvScreen({ items, favorites, onToggleFavorite, onBack, setti
   const [playing, setPlaying] = useState<M3UItem | null>(null);
   const [epgPrograms, setEpgPrograms] = useState<EpgProgram[]>([]);
   const [epgLoading, setEpgLoading] = useState(false);
+  const [showCategories, setShowCategories] = useState(true);
 
   useEffect(() => { setVisibleCount(80); }, [category, chanQuery]);
 
@@ -99,6 +107,7 @@ export function LiveTvScreen({ items, favorites, onToggleFavorite, onBack, setti
   const handleSelect = useCallback((item: M3UItem) => {
     setSelected(item);
     setRecents((prev) => [item, ...prev.filter((x) => x.id !== item.id)].slice(0, MAX_RECENTS));
+    setPlaying(item);
   }, []);
 
   const now = Math.floor(Date.now() / 1000);
@@ -110,51 +119,53 @@ export function LiveTvScreen({ items, favorites, onToggleFavorite, onBack, setti
   return (
     <View style={styles.container}>
       <AmbientBackground />
-      <View style={styles.layout}>
+      <View style={[styles.layout, isMobile && !isLandscape && styles.layoutMobile]}>
 
-        {/* ===== CATEGORIAS ===== */}
-        <View style={styles.catPanel}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.backText}>Voltar</Text>
-          </TouchableOpacity>
+        {/* ===== CATEGORIAS (Desktop) / Ocultas em mobile portrait ===== */}
+        {(!isMobile || isLandscape || showCategories) && (
+          <View style={[styles.catPanel, isMobile && styles.catPanelMobile]}>
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.backText}>Voltar</Text>
+            </TouchableOpacity>
 
-          <View style={styles.sectionHeader}>
-            <Radio size={14} color="#4ade80" />
-            <Text style={styles.sectionTitle}>TV AO VIVO</Text>
+            <View style={styles.sectionHeader}>
+              <Radio size={14} color="#4ade80" />
+              <Text style={styles.sectionTitle}>TV AO VIVO</Text>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Search size={12} color="rgba(255,255,255,0.4)" />
+              <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
+              {[
+                { id: "all" as SpecialCat, label: "Todos", count: items.length, icon: LayoutGrid },
+                { id: "recent" as SpecialCat, label: "Recentes", count: recents.length, icon: Clock },
+                { id: "favorites" as SpecialCat, label: "Favoritos", count: favorites.size, icon: Heart },
+              ].map(({ id, label, count, icon: Icon }) => (
+                <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => setCategory(id)}>
+                  <Icon size={13} color={category === id ? "#4ade80" : "rgba(255,255,255,0.5)"} />
+                  <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
+                  <Text style={styles.catCount}>{count}</Text>
+                </TouchableOpacity>
+              ))}
+
+              <View style={styles.divider} />
+
+              {filteredCats.map((c) => (
+                <TouchableOpacity key={c.name} style={[styles.catBtn, category === c.name && styles.catBtnActive]} onPress={() => setCategory(c.name)}>
+                  <Text style={[styles.catText, category === c.name && styles.catTextActive]} numberOfLines={1}>{c.name}</Text>
+                  <Text style={styles.catCount}>{c.count}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-
-          <View style={styles.searchBox}>
-            <Search size={12} color="rgba(255,255,255,0.4)" />
-            <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
-            {[
-              { id: "all" as SpecialCat, label: "Todos", count: items.length, icon: LayoutGrid },
-              { id: "recent" as SpecialCat, label: "Recentes", count: recents.length, icon: Clock },
-              { id: "favorites" as SpecialCat, label: "Favoritos", count: favorites.size, icon: Heart },
-            ].map(({ id, label, count, icon: Icon }) => (
-              <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => setCategory(id)}>
-                <Icon size={13} color={category === id ? "#4ade80" : "rgba(255,255,255,0.5)"} />
-                <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
-                <Text style={styles.catCount}>{count}</Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.divider} />
-
-            {filteredCats.map((c) => (
-              <TouchableOpacity key={c.name} style={[styles.catBtn, category === c.name && styles.catBtnActive]} onPress={() => setCategory(c.name)}>
-                <Text style={[styles.catText, category === c.name && styles.catTextActive]} numberOfLines={1}>{c.name}</Text>
-                <Text style={styles.catCount}>{c.count}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        )}
 
         {/* ===== LISTA DE CANAIS ===== */}
-        <View style={styles.channelPanel}>
+        <View style={[styles.channelPanel, isMobile && styles.channelPanelMobile]}>
           <View style={styles.searchBox}>
             <Search size={12} color="rgba(255,255,255,0.4)" />
             <TextInput value={chanQuery} onChangeText={setChanQuery} placeholder={`Buscar canal... (${filteredItems.length})`} placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
@@ -166,78 +177,92 @@ export function LiveTvScreen({ items, favorites, onToggleFavorite, onBack, setti
             showsVerticalScrollIndicator={false}
             onEndReached={() => setVisibleCount((v) => v + 80)}
             onEndReachedThreshold={0.5}
+            numColumns={isMobile && !isLandscape ? 2 : 1}
             renderItem={({ item }) => {
               const isFav = favorites.has(item.id);
               const isSelected = selected?.id === item.id;
+              const isMobilePortrait = isMobile && !isLandscape;
+
               return (
                 <TouchableOpacity
-                  style={[styles.channelRow, isSelected && styles.channelRowActive]}
+                  style={[
+                    isMobilePortrait ? styles.channelCardMobile : styles.channelRow,
+                    isSelected && styles.channelRowActive,
+                  ]}
                   onPress={() => handleSelect(item)}
                   activeOpacity={0.7}
                 >
-                  {item.logo
-                    ? <Image source={{ uri: item.logo }} style={styles.channelLogo} resizeMode="contain" />
-                    : <View style={styles.channelLogoFallback}><Radio size={14} color="rgba(255,255,255,0.3)" /></View>
-                  }
-                  <Text style={[styles.channelName, isSelected && styles.channelNameActive]} numberOfLines={2}>{item.name}</Text>
-                  <TouchableOpacity onPress={() => onToggleFavorite(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <Heart size={13} color={isFav ? "#f43f5e" : "rgba(255,255,255,0.25)"} fill={isFav ? "#f43f5e" : "transparent"} />
-                  </TouchableOpacity>
+                  {item.logo ? (
+                    <Image source={{ uri: item.logo }} style={[isMobilePortrait ? styles.channelLogoCard : styles.channelLogo]} resizeMode="contain" />
+                  ) : (
+                    <View style={[isMobilePortrait ? styles.channelLogoFallbackCard : styles.channelLogoFallback]}>
+                      <Radio size={14} color="rgba(255,255,255,0.3)" />
+                    </View>
+                  )}
+                  <View style={isMobilePortrait ? styles.cardContent : styles.rowContent}>
+                    <Text style={[styles.channelName, isSelected && styles.channelNameActive]} numberOfLines={2}>{item.name}</Text>
+                    <TouchableOpacity onPress={() => onToggleFavorite(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Heart size={13} color={isFav ? "#f43f5e" : "rgba(255,255,255,0.25)"} fill={isFav ? "#f43f5e" : "transparent"} />
+                    </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
               );
             }}
           />
         </View>
 
-        {/* ===== PREVIEW + EPG ===== */}
-        <View style={styles.previewPanel}>
-          {selected ? (
-            <>
-              <View style={styles.previewHeader}>
-                {selected.logo
-                  ? <Image source={{ uri: selected.logo }} style={styles.previewLogo} resizeMode="contain" />
-                  : null
-                }
-                <Text style={styles.previewTitle} numberOfLines={2}>{selected.name}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.playBtn}
-                onPress={() => setPlaying(selected)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.playBtnText}>▶  ASSISTIR AGORA</Text>
-              </TouchableOpacity>
-
-              {/* EPG */}
-              <View style={styles.epgSection}>
-                <View style={styles.epgHeader}>
-                  <Calendar size={12} color="#4ade80" />
-                  <Text style={styles.epgTitle}>Guia de Programação</Text>
+        {/* ===== PREVIEW + EPG (Desktop) / Oculto em mobile portrait ===== */}
+        {(!isMobile || isLandscape) && (
+          <View style={styles.previewPanel}>
+            {selected ? (
+              <>
+                <View style={styles.previewHeader}>
+                  {selected.logo
+                    ? <Image source={{ uri: selected.logo }} style={styles.previewLogo} resizeMode="contain" />
+                    : null
+                  }
+                  <Text style={styles.previewTitle} numberOfLines={2}>{selected.name}</Text>
                 </View>
-                {epgLoading
-                  ? <ActivityIndicator size="small" color="#4ade80" style={{ marginTop: 12 }} />
-                  : epgPrograms.length === 0
-                    ? <Text style={styles.epgEmpty}>Sem guia disponível</Text>
-                    : epgPrograms.slice(0, 5).map((prog) => {
-                        const isNow = prog.start <= now && now < prog.stop;
-                        return (
-                          <View key={prog.id} style={[styles.epgRow, isNow && styles.epgRowNow]}>
-                            <Text style={styles.epgTime}>{formatTime(prog.start)}</Text>
-                            <Text style={[styles.epgProgTitle, isNow && styles.epgProgTitleNow]} numberOfLines={1}>{prog.title}</Text>
-                          </View>
-                        );
-                      })
-                }
+
+                <TouchableOpacity
+                  style={styles.playBtn}
+                  onPress={() => setPlaying(selected)}
+                  activeOpacity={0.8}
+                >
+                  <Play size={16} color="#000" />
+                  <Text style={styles.playBtnText}>ASSISTIR AGORA</Text>
+                </TouchableOpacity>
+
+                {/* EPG */}
+                <View style={styles.epgSection}>
+                  <View style={styles.epgHeader}>
+                    <Calendar size={12} color="#4ade80" />
+                    <Text style={styles.epgTitle}>Guia de Programação</Text>
+                  </View>
+                  {epgLoading
+                    ? <ActivityIndicator size="small" color="#4ade80" style={{ marginTop: 12 }} />
+                    : epgPrograms.length === 0
+                      ? <Text style={styles.epgEmpty}>Sem guia disponível</Text>
+                      : epgPrograms.slice(0, 5).map((prog) => {
+                          const isNow = prog.start <= now && now < prog.stop;
+                          return (
+                            <View key={prog.id} style={[styles.epgRow, isNow && styles.epgRowNow]}>
+                              <Text style={styles.epgTime}>{formatTime(prog.start)}</Text>
+                              <Text style={[styles.epgProgTitle, isNow && styles.epgProgTitleNow]} numberOfLines={1}>{prog.title}</Text>
+                            </View>
+                          );
+                        })
+                  }
+                </View>
+              </>
+            ) : (
+              <View style={styles.previewEmpty}>
+                <Radio size={36} color="rgba(255,255,255,0.1)" />
+                <Text style={styles.previewEmptyText}>Selecione um canal</Text>
               </View>
-            </>
-          ) : (
-            <View style={styles.previewEmpty}>
-              <Radio size={36} color="rgba(255,255,255,0.1)" />
-              <Text style={styles.previewEmptyText}>Selecione um canal</Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Full-screen Player */}
@@ -375,4 +400,32 @@ const styles = StyleSheet.create({
 
   previewEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   previewEmptyText: { fontSize: 13, color: "rgba(255,255,255,0.2)" },
+
+  // Mobile Styles
+  layoutMobile: { flexDirection: "column", padding: 0 },
+  catPanelMobile: { width: "100%", borderRightWidth: 0, borderBottomWidth: 1, maxHeight: "40%" },
+  channelPanelMobile: { width: "100%", borderRightWidth: 0, flex: 1, padding: 0 },
+  channelCardMobile: {
+    flex: 1,
+    margin: 6,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "rgba(74,222,128,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  channelLogoCard: { width: 60, height: 48, borderRadius: 8, marginBottom: 8 },
+  channelLogoFallbackCard: {
+    width: 60,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  cardContent: { alignItems: "center", gap: 8 },
+  rowContent: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
 });

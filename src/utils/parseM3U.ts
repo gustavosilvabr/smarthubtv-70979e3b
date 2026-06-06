@@ -26,7 +26,7 @@ export function parseM3U(text: string): M3UItem[] {
   while (i < lines.length) {
     const line = lines[i];
     if (line.startsWith("#EXTINF")) {
-      const logo = attr(line, "tvg-logo");
+      const logo = decodeAttr(attr(line, "tvg-logo"));
       const group = attr(line, "group-title") || "Outros";
       const streamId = attr(line, "tvg-id");
       const commaIdx = line.lastIndexOf(",");

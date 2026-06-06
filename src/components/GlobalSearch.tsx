@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Film, Radio, Search, Tv, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { matchesSearch } from "@/utils/string";
+import { getDisplayImageUrl } from "@/utils/media";
 
 interface Props {
   items: M3UItem[];
@@ -138,16 +139,20 @@ export function GlobalSearch({ items, onSelectLive, onSelectMovie, onSelectSerie
                       <span className="ml-auto font-normal text-white/30">{group.length}</span>
                     </div>
                     <ul className="space-y-0.5">
-                      {group.map((item) => (
+                      {group.map((item) => {
+                        const imageUrl = getDisplayImageUrl(item.logo);
+                        return (
                         <li key={item.id}>
                           <button
                             onClick={() => handleSelect(item)}
                             className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition hover:border-white/10 hover:bg-white/5 focus:outline-none focus-visible:border-amber-400/50"
                           >
-                            {item.logo ? (
+                            {imageUrl ? (
                               <img
-                                src={item.logo}
+                                src={imageUrl}
                                 alt=""
+                                loading="lazy"
+                                decoding="async"
                                 className="h-8 w-8 shrink-0 rounded object-contain bg-white/5"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                               />
@@ -164,7 +169,7 @@ export function GlobalSearch({ items, onSelectLive, onSelectMovie, onSelectSerie
                             </span>
                           </button>
                         </li>
-                      ))}
+                      );})}
                     </ul>
                   </div>
                 );

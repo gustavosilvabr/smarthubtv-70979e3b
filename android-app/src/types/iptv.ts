@@ -1,10 +1,12 @@
 export interface M3UItem {
+  id: string;
   name: string;
   url: string;
   group: string;
-  logo?: string;
-  type: 'live' | 'vod' | 'series';
+  logo: string;
+  type: 'live' | 'movie' | 'series';
   fallbackUrl?: string;
+  streamId?: string | number;
   info?: SeriesInfo;
 }
 

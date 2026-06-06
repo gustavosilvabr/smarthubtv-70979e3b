@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { View, StyleSheet, Dimensions, Animated } from "react-native";
+import { View, StyleSheet, Dimensions, Animated, Platform } from "react-native";
+
+const useNativeDriver = Platform.OS !== "web";
 
 export function AmbientBackground() {
   const bubble1TransformX = useRef(new Animated.Value(0)).current;
@@ -22,12 +24,12 @@ export function AmbientBackground() {
           Animated.timing(tx, {
             toValue: Math.random() * 100 - 50,
             duration: 5000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
           Animated.timing(tx, {
             toValue: Math.random() * 100 - 50,
             duration: 5000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
         ]).start(() => runX());
       };
@@ -37,12 +39,12 @@ export function AmbientBackground() {
           Animated.timing(ty, {
             toValue: Math.random() * 100 - 50,
             duration: 5000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
           Animated.timing(ty, {
             toValue: Math.random() * 100 - 50,
             duration: 5000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
         ]).start(() => runY());
       };
@@ -52,12 +54,12 @@ export function AmbientBackground() {
           Animated.timing(sc, {
             toValue: 0.85 + Math.random() * 0.3,
             duration: 4000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
           Animated.timing(sc, {
             toValue: 0.85 + Math.random() * 0.3,
             duration: 4000 + Math.random() * 2000,
-            useNativeDriver: true,
+            useNativeDriver,
           }),
         ]).start(() => runScale());
       };

@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { ChevronLeft, Tv, Search, Heart, LayoutGrid, Play, ChevronRight } from "lucide-react-native";
 import { AmbientBackground } from "./AmbientBackground";
@@ -33,6 +34,17 @@ interface SeriesDetails {
 }
 
 export function SeriesScreen({ items, favorites, onToggleFavorite, onBack, settings, initialCategory = "all" }: Props) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isMobile = width < 768;
+
+  const numColumns = useMemo(() => {
+    if (isMobile && !isLandscape) return 2;
+    if (isMobile) return 3;
+    if (isLandscape) return 4;
+    return 4;
+  }, [isMobile, isLandscape]);
+
   const series = useMemo(() => items.filter((i) => i.type === "series"), [items]);
 
   const [category, setCategory] = useState<"all" | "favorites" | string>(initialCategory);
@@ -107,50 +119,52 @@ export function SeriesScreen({ items, favorites, onToggleFavorite, onBack, setti
   return (
     <View style={styles.container}>
       <AmbientBackground />
-      <View style={styles.layout}>
+      <View style={[styles.layout, isMobile && !isLandscape && styles.layoutMobile]}>
 
-        {/* ===== CATEGORIAS ===== */}
-        <View style={styles.catPanel}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-            <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
-            <Text style={styles.backText}>Voltar</Text>
-          </TouchableOpacity>
+        {/* ===== CATEGORIAS (Desktop) ===== */}
+        {(!isMobile || isLandscape) && (
+          <View style={[styles.catPanel, isMobile && styles.catPanelMobile]}>
+            <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+              <ChevronLeft size={20} color="rgba(255,255,255,0.7)" />
+              <Text style={styles.backText}>Voltar</Text>
+            </TouchableOpacity>
 
-          <View style={styles.sectionHeader}>
-            <Tv size={14} color="#e879f9" />
-            <Text style={styles.sectionTitle}>SÉRIES</Text>
+            <View style={styles.sectionHeader}>
+              <Tv size={14} color="#e879f9" />
+              <Text style={styles.sectionTitle}>SÉRIES</Text>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Search size={12} color="rgba(255,255,255,0.4)" />
+              <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
+              {[
+                { id: "all", label: "Todas", count: series.length, icon: LayoutGrid },
+                { id: "favorites", label: "Favoritos", count: favorites.size, icon: Heart },
+              ].map(({ id, label, count, icon: Icon }) => (
+                <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => { setCategory(id); setVisibleCount(60); }}>
+                  <Icon size={13} color={category === id ? "#e879f9" : "rgba(255,255,255,0.5)"} />
+                  <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
+                  <Text style={styles.catCount}>{count}</Text>
+                </TouchableOpacity>
+              ))}
+
+              <View style={styles.divider} />
+
+              {filteredCats.map((c) => (
+                <TouchableOpacity key={c.name} style={[styles.catBtn, category === c.name && styles.catBtnActive]} onPress={() => { setCategory(c.name); setVisibleCount(60); }}>
+                  <Text style={[styles.catText, category === c.name && styles.catTextActive]} numberOfLines={1}>{c.name}</Text>
+                  <Text style={styles.catCount}>{c.count}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-
-          <View style={styles.searchBox}>
-            <Search size={12} color="rgba(255,255,255,0.4)" />
-            <TextInput value={catQuery} onChangeText={setCatQuery} placeholder="Categoria..." placeholderTextColor="rgba(255,255,255,0.3)" style={styles.searchInput} />
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.catList}>
-            {[
-              { id: "all", label: "Todas", count: series.length, icon: LayoutGrid },
-              { id: "favorites", label: "Favoritos", count: favorites.size, icon: Heart },
-            ].map(({ id, label, count, icon: Icon }) => (
-              <TouchableOpacity key={id} style={[styles.catBtn, category === id && styles.catBtnActive]} onPress={() => { setCategory(id); setVisibleCount(60); }}>
-                <Icon size={13} color={category === id ? "#e879f9" : "rgba(255,255,255,0.5)"} />
-                <Text style={[styles.catText, category === id && styles.catTextActive]} numberOfLines={1}>{label}</Text>
-                <Text style={styles.catCount}>{count}</Text>
-              </TouchableOpacity>
-            ))}
-
-            <View style={styles.divider} />
-
-            {filteredCats.map((c) => (
-              <TouchableOpacity key={c.name} style={[styles.catBtn, category === c.name && styles.catBtnActive]} onPress={() => { setCategory(c.name); setVisibleCount(60); }}>
-                <Text style={[styles.catText, category === c.name && styles.catTextActive]} numberOfLines={1}>{c.name}</Text>
-                <Text style={styles.catCount}>{c.count}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        )}
 
         {/* ===== GRADE DE SÉRIES ===== */}
-        <View style={styles.gridPanel}>
+        <View style={[styles.gridPanel, isMobile && styles.gridPanelMobile]}>
           <View style={styles.searchBox}>
             <Search size={12} color="rgba(255,255,255,0.4)" />
             <TextInput
@@ -165,7 +179,7 @@ export function SeriesScreen({ items, favorites, onToggleFavorite, onBack, setti
           <FlatList
             data={filteredSeries.slice(0, visibleCount)}
             keyExtractor={(s) => s.id}
-            numColumns={4}
+            numColumns={numColumns}
             showsVerticalScrollIndicator={false}
             onEndReached={() => setVisibleCount((v) => v + 60)}
             onEndReachedThreshold={0.5}
@@ -197,79 +211,131 @@ export function SeriesScreen({ items, favorites, onToggleFavorite, onBack, setti
           />
         </View>
 
-        {/* ===== DETALHES / EPISÓDIOS ===== */}
-        <View style={styles.detailPanel}>
-          {!selectedSeries ? (
-            <View style={styles.detailEmpty}>
-              <Tv size={36} color="rgba(255,255,255,0.08)" />
-              <Text style={styles.detailEmptyText}>Selecione uma série</Text>
-            </View>
-          ) : (
-            <>
-              {/* Poster e nome */}
-              <View style={styles.detailHeader}>
-                {selectedSeries.logo
-                  ? <Image source={{ uri: selectedSeries.logo }} style={styles.detailPoster} resizeMode="cover" />
-                  : null
-                }
-                <View style={styles.detailHeaderText}>
-                  <Text style={styles.detailTitle} numberOfLines={2}>{selectedSeries.name}</Text>
-                  <Text style={styles.detailCategory}>{selectedSeries.group}</Text>
-                  <TouchableOpacity
-                    onPress={() => onToggleFavorite(selectedSeries.id)}
-                    style={styles.favBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Heart size={12} color={favorites.has(selectedSeries.id) ? "#f43f5e" : "rgba(255,255,255,0.5)"} fill={favorites.has(selectedSeries.id) ? "#f43f5e" : "transparent"} />
-                    <Text style={styles.favBtnText}>{favorites.has(selectedSeries.id) ? "Favoritado" : "Favoritar"}</Text>
-                  </TouchableOpacity>
-                </View>
+        {/* ===== DETALHES / EPISÓDIOS (Desktop) ===== */}
+        {(!isMobile || isLandscape) && (
+          <View style={styles.detailPanel}>
+            {!selectedSeries ? (
+              <View style={styles.detailEmpty}>
+                <Tv size={36} color="rgba(255,255,255,0.08)" />
+                <Text style={styles.detailEmptyText}>Selecione uma série</Text>
               </View>
+            ) : (
+              <>
+                {/* Poster e nome */}
+                <View style={styles.detailHeader}>
+                  {selectedSeries.logo
+                    ? <Image source={{ uri: selectedSeries.logo }} style={styles.detailPoster} resizeMode="cover" />
+                    : null
+                  }
+                  <View style={styles.detailHeaderText}>
+                    <Text style={styles.detailTitle} numberOfLines={2}>{selectedSeries.name}</Text>
+                    <Text style={styles.detailCategory}>{selectedSeries.group}</Text>
+                    <TouchableOpacity
+                      onPress={() => onToggleFavorite(selectedSeries.id)}
+                      style={styles.favBtn}
+                      activeOpacity={0.8}
+                    >
+                      <Heart size={12} color={favorites.has(selectedSeries.id) ? "#f43f5e" : "rgba(255,255,255,0.5)"} fill={favorites.has(selectedSeries.id) ? "#f43f5e" : "transparent"} />
+                      <Text style={styles.favBtnText}>{favorites.has(selectedSeries.id) ? "Favoritado" : "Favoritar"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
 
-              {/* Seasons */}
-              {details?.loadingState === "loading" ? (
-                <ActivityIndicator size="small" color="#e879f9" style={{ marginTop: 20 }} />
-              ) : details?.loadingState === "error" ? (
-                <Text style={styles.errorText}>Erro ao carregar episódios.</Text>
-              ) : (
-                <>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.seasonsRow}>
-                    {seasons.map((s) => (
-                      <TouchableOpacity
-                        key={s}
-                        style={[styles.seasonBtn, selectedSeason === s && styles.seasonBtnActive]}
-                        onPress={() => setSelectedSeason(s)}
-                      >
-                        <Text style={[styles.seasonText, selectedSeason === s && styles.seasonTextActive]}>T{s}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                {/* Seasons */}
+                {details?.loadingState === "loading" ? (
+                  <ActivityIndicator size="small" color="#e879f9" style={{ marginTop: 20 }} />
+                ) : details?.loadingState === "error" ? (
+                  <Text style={styles.errorText}>Erro ao carregar episódios.</Text>
+                ) : (
+                  <>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.seasonsRow}>
+                      {seasons.map((s) => (
+                        <TouchableOpacity
+                          key={s}
+                          style={[styles.seasonBtn, selectedSeason === s && styles.seasonBtnActive]}
+                          onPress={() => setSelectedSeason(s)}
+                        >
+                          <Text style={[styles.seasonText, selectedSeason === s && styles.seasonTextActive]}>T{s}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
 
-                  <ScrollView showsVerticalScrollIndicator={false} style={styles.epList}>
-                    {currentEpisodes.map((ep) => (
-                      <TouchableOpacity
-                        key={ep.id}
-                        style={styles.epRow}
-                        onPress={() => setPlaying(ep)}
-                        activeOpacity={0.8}
-                      >
-                        {ep.logo
-                          ? <Image source={{ uri: ep.logo }} style={styles.epThumb} resizeMode="cover" />
-                          : <View style={styles.epThumbFallback}><Play size={14} color="#e879f9" /></View>
-                        }
-                        <View style={styles.epInfo}>
-                          <Text style={styles.epNum}>Ep. {ep.episodeNum}</Text>
-                          <Text style={styles.epTitle} numberOfLines={2}>{ep.title}</Text>
-                        </View>
-                        <ChevronRight size={14} color="rgba(255,255,255,0.3)" />
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </>
-              )}
-            </>
-          )}
-        </View>
+                    <ScrollView showsVerticalScrollIndicator={false} style={styles.epList}>
+                      {currentEpisodes.map((ep) => (
+                        <TouchableOpacity
+                          key={ep.id}
+                          style={styles.epRow}
+                          onPress={() => setPlaying(ep)}
+                          activeOpacity={0.8}
+                        >
+                          {ep.logo
+                            ? <Image source={{ uri: ep.logo }} style={styles.epThumb} resizeMode="cover" />
+                            : <View style={styles.epThumbFallback}><Play size={14} color="#e879f9" /></View>
+                          }
+                          <View style={styles.epInfo}>
+                            <Text style={styles.epNum}>Ep. {ep.episodeNum}</Text>
+                            <Text style={styles.epTitle} numberOfLines={2}>{ep.title}</Text>
+                          </View>
+                          <ChevronRight size={14} color="rgba(255,255,255,0.3)" />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
+
+        {/* ===== DETALHES MOBILE ===== */}
+        {isMobile && !isLandscape && selectedSeries && (
+          <View style={styles.detailPanelMobile}>
+            {/* Seasons */}
+            {details?.loadingState === "loading" ? (
+              <ActivityIndicator size="small" color="#e879f9" style={{ marginTop: 20 }} />
+            ) : details?.loadingState === "error" ? (
+              <Text style={styles.errorText}>Erro ao carregar episódios.</Text>
+            ) : (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.seasonsRow}>
+                  {seasons.map((s) => (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.seasonBtn, selectedSeason === s && styles.seasonBtnActive]}
+                      onPress={() => setSelectedSeason(s)}
+                    >
+                      <Text style={[styles.seasonText, selectedSeason === s && styles.seasonTextActive]}>T{s}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                <Text style={styles.episodesTitle}>{seasons.length > 0 ? `Temporada ${selectedSeason}` : "Sem episódios"}</Text>
+                <FlatList
+                  data={currentEpisodes}
+                  keyExtractor={(ep) => ep.id}
+                  scrollEnabled={false}
+                  renderItem={({ item: ep }) => (
+                    <TouchableOpacity
+                      style={styles.epRowMobile}
+                      onPress={() => setPlaying(ep)}
+                      activeOpacity={0.8}
+                    >
+                      {ep.logo
+                        ? <Image source={{ uri: ep.logo }} style={styles.epThumbMobile} resizeMode="cover" />
+                        : <View style={styles.epThumbFallback}><Play size={14} color="#e879f9" /></View>
+                      }
+                      <View style={styles.epInfoMobile}>
+                        <Text style={styles.epNum}>Ep. {ep.episodeNum}</Text>
+                        <Text style={styles.epTitle} numberOfLines={2}>{ep.title}</Text>
+                      </View>
+                      <Play size={18} color="#e879f9" />
+                    </TouchableOpacity>
+                  )}
+                />
+              </>
+            )}
+          </View>
+        )}
       </View>
 
       {playing && playingItem && <VideoPlayer item={playingItem} onClose={() => setPlaying(null)} />}
@@ -322,6 +388,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.05)", marginVertical: 8 },
 
   gridPanel: { flex: 1, padding: 10 },
+  gridPanelMobile: { padding: 8 },
   seriesCard: {
     flex: 1,
     borderRadius: 10,
@@ -329,7 +396,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
-    maxWidth: "24%",
   },
   seriesCardActive: { borderColor: "#e879f9", backgroundColor: "rgba(232,121,249,0.08)" },
   seriesPoster: { width: "100%", aspectRatio: 0.67 },
@@ -399,4 +465,27 @@ const styles = StyleSheet.create({
   detailEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   detailEmptyText: { fontSize: 12, color: "rgba(255,255,255,0.2)" },
   errorText: { fontSize: 12, color: "#f87171", textAlign: "center", marginTop: 20 },
+
+  // Mobile Styles
+  layoutMobile: { flexDirection: "column", padding: 0 },
+  catPanelMobile: { width: "100%", borderRightWidth: 0, borderBottomWidth: 1, maxHeight: "20%" },
+  detailPanelMobile: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.05)",
+  },
+  episodesTitle: { fontSize: 12, fontWeight: "bold", color: "#e879f9", marginVertical: 10, marginHorizontal: 4 },
+  epRowMobile: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 6,
+    backgroundColor: "rgba(255,255,255,0.03)",
+    gap: 10,
+  },
+  epThumbMobile: { width: 48, height: 36, borderRadius: 6 },
+  epInfoMobile: { flex: 1 },
 });

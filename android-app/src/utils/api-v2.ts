@@ -9,6 +9,7 @@ import type {
   XtreamSeriesEpisodes,
   FetchProgress,
 } from '../types/iptv';
+import { normalizeLogoUrl } from './media';
 
 function stableHash(value: string): string {
   let hash = 0;
@@ -131,13 +132,16 @@ export async function fetchIptvData(
         const group = liveCatMap.get(String(ch.category_id)) || 'Live Channels';
         const hlsUrl = `${server}/live/${username}/${password}/${ch.stream_id}.m3u8`;
         const tsUrl = `${server}/live/${username}/${password}/${ch.stream_id}.ts`;
+        const id = `live:${ch.stream_id}:${stableHash(ch.name || `Channel ${ch.stream_id}`)}`;
 
         items.push({
+          id,
           name: ch.name || `Channel ${ch.stream_id}`,
           url: hlsUrl,
           group,
-          logo: ch.stream_icon || undefined,
+          logo: normalizeLogoUrl(server, ch.stream_icon),
           type: 'live',
+          streamId: ch.stream_id,
           fallbackUrl: tsUrl,
         });
       }
@@ -169,13 +173,16 @@ export async function fetchIptvData(
         const ext = (m.container_extension || 'mp4').replace(/^\./, '');
         const group = vodCatMap.get(String(m.category_id)) || 'Movies';
         const movieUrl = `${server}/movie/${username}/${password}/${m.stream_id}.${ext}`;
+        const id = `movie:${m.stream_id}:${stableHash(m.name || `Movie ${m.stream_id}`)}`;
 
         items.push({
+          id,
           name: m.name || `Movie ${m.stream_id}`,
           url: movieUrl,
           group,
-          logo: m.stream_icon || undefined,
-          type: 'vod',
+          logo: normalizeLogoUrl(server, m.stream_icon),
+          type: 'movie',
+          streamId: m.stream_id,
         });
       }
     }
@@ -205,13 +212,16 @@ export async function fetchIptvData(
 
         const group = seriesCatMap.get(String(s.category_id)) || 'Series';
         const placeholderUrl = `xtream-series://${s.series_id}`;
+        const id = `series:${s.series_id}:${stableHash(s.name || `Series ${s.series_id}`)}`;
 
         items.push({
+          id,
           name: s.name || `Series ${s.series_id}`,
           url: placeholderUrl,
           group,
-          logo: s.cover || undefined,
+          logo: normalizeLogoUrl(server, s.cover),
           type: 'series',
+          streamId: s.series_id,
           info: {
             plot: s.plot,
             poster: s.cover,
@@ -254,10 +264,11 @@ export async function fetchSeriesEpisodes(
 
         for (const ep of episodes) {
           if (ep.id) {
+            const episodeUrl = `${server}/series/${username}/${password}/${ep.id}.${ep.container_extension || 'mkv'}`;
             eps.push({
               id: ep.id,
               title: ep.title || `Episode ${ep.episode_num}`,
-              url: `${server}/series/${username}/${password}/${ep.id}.${ep.container_extension || 'mkv'}`,
+              url: episodeUrl,
             });
           }
         }
@@ -278,7 +289,7 @@ export async function fetchSeriesEpisodes(
 export function buildStreamUrl(
   settings: IptvSettings,
   streamId: string | number,
-  type: 'live' | 'vod' | 'series',
+  type: 'live' | 'movie' | 'series',
   extension: string = 'mp4'
 ): string {
   const server = cleanUrl(settings.server);
@@ -287,7 +298,7 @@ export function buildStreamUrl(
   switch (type) {
     case 'live':
       return `${server}/live/${username}/${password}/${streamId}.m3u8`;
-    case 'vod':
+    case 'movie':
       return `${server}/movie/${username}/${password}/${streamId}.${extension}`;
     case 'series':
       return `${server}/series/${username}/${password}/${streamId}.${extension}`;

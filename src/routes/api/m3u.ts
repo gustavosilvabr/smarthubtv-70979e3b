@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildLiveStreamUrls } from "@/utils/buildLiveStreamUrls";
 import { DEFAULT_IPTV_SETTINGS, normalizeIptvSettings } from "@/utils/iptvSettings";
+import { normalizeLogoUrl } from "@/utils/media";
 
 const DEFAULT_SETTINGS = DEFAULT_IPTV_SETTINGS;
 
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/api/m3u")({
                 if (!ch.stream_id) continue;
                 const urls = buildLiveStreamUrls(settings.server, settings.username, settings.password, ch.stream_id);
                 const name = escapeAttr(ch.name || `Canal ${ch.stream_id}`);
-                const logo = escapeAttr(ch.stream_icon || "");
+                const logo = escapeAttr(normalizeLogoUrl(settings.server, ch.stream_icon));
                 const group = escapeAttr(liveCatMap.get(String(ch.category_id)) || "Canais ao vivo");
                 write(
                   `#EXTINF:-1 tvg-id="${ch.stream_id}" tvg-name="${name}" tvg-logo="${logo}" group-title="${group}",${ch.name}\n` +
@@ -60,7 +61,7 @@ export const Route = createFileRoute("/api/m3u")({
                 if (!m.stream_id) continue;
                 const ext = (m.container_extension || "mp4").replace(/^\./, "") || "mp4";
                 const name = escapeAttr(m.name || `Filme ${m.stream_id}`);
-                const logo = escapeAttr(m.stream_icon || "");
+                const logo = escapeAttr(normalizeLogoUrl(settings.server, m.stream_icon));
                 const group = escapeAttr(vodCatMap.get(String(m.category_id)) || "Filmes");
                 const url = `${settings.server}/movie/${encodeURIComponent(settings.username)}/${encodeURIComponent(settings.password)}/${m.stream_id}.${ext}`;
                 write(
@@ -88,7 +89,7 @@ export const Route = createFileRoute("/api/m3u")({
               for (const s of seriesList) {
                 if (!s.series_id) continue;
                 const name = escapeAttr(s.name || `Série ${s.series_id}`);
-                const logo = escapeAttr(s.cover || "");
+                const logo = escapeAttr(normalizeLogoUrl(settings.server, s.cover));
                 const group = escapeAttr(
                   seriesCatMap.get(String(s.category_id)) || "Séries",
                 );

@@ -255,6 +255,7 @@ function Dashboard() {
       <SettingsPanel
         settings={settings}
         loading={false}
+        liveItems={items.filter((i) => i.type === "live")}
         onSave={saveSettings}
         onHome={goHome}
         onLogout={handleLogout}

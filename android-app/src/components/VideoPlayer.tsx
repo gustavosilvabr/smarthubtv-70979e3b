@@ -7,28 +7,30 @@ import {
   Text,
 } from "react-native";
 import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
-import { X, Play, Pause, RotateCcw } from "lucide-react-native";
-import { M3UItem } from "../utils/api";
+import { X, Play, Pause, RotateCcw, Heart } from "lucide-react-native";
+import { M3UItem } from "../types/iptv";
 
 interface Props {
   item: M3UItem | null;
   urlOverride?: string;
   onClose: () => void;
+  onToggleFavorite?: (id: string) => void;
+  isFavorited?: boolean;
 }
 
-export function VideoPlayer({ item, urlOverride, onClose }: Props) {
+export function VideoPlayer({ item, urlOverride, onClose, onToggleFavorite, isFavorited }: Props) {
   const videoRef = useRef<Video>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(false);
 
   const streamUrl = urlOverride || item?.url || "";
 
   useEffect(() => {
     let timer: any;
     if (showControls && isPlaying) {
-      timer = setTimeout(() => setShowControls(false), 3000);
+      timer = setTimeout(() => setShowControls(false), 5000);
     }
     return () => clearTimeout(timer);
   }, [showControls, isPlaying]);
@@ -75,27 +77,27 @@ export function VideoPlayer({ item, urlOverride, onClose }: Props) {
         rate={1.0}
         volume={1.0}
         isMuted={false}
-        resizeMode={ResizeMode.CONTAIN}
+        resizeMode={ResizeMode.COVER}
         shouldPlay={true}
         onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
         style={styles.video}
       />
 
-      {/* Toque na tela para alternar controles */}
+      {/* Tap to toggle controls */}
       <TouchableOpacity
         style={styles.touchOverlay}
         activeOpacity={1}
-        onPress={() => setShowControls(!showControls)}
+        onPress={() => setShowControls(true)}
       />
 
-      {/* Indicador de Carregamento */}
+      {/* Loading indicator */}
       {loading && (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#a855f7" />
         </View>
       )}
 
-      {/* Indicador de Erro */}
+      {/* Error indicator */}
       {error && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Não foi possível reproduzir este canal/vídeo.</Text>
@@ -107,7 +109,7 @@ export function VideoPlayer({ item, urlOverride, onClose }: Props) {
         </View>
       )}
 
-      {/* Controles do Player */}
+      {/* Player controls */}
       {showControls && (
         <View style={styles.controlsOverlay}>
           {/* Header */}
@@ -115,12 +117,28 @@ export function VideoPlayer({ item, urlOverride, onClose }: Props) {
             <Text style={styles.title} numberOfLines={1}>
               {item?.name || "Reproduzindo..."}
             </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-              <X size={22} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.headerButtons}>
+              {onToggleFavorite && item && (
+                <TouchableOpacity
+                  onPress={() => onToggleFavorite(item.id)}
+                  style={styles.favBtn}
+                  activeOpacity={0.7}
+                >
+                  <Heart
+                    size={20}
+                    color={isFavorited ? "#ff3333" : "#fff"}
+                    fill={isFavorited ? "#ff3333" : "none"}
+                    strokeWidth={1.5}
+                  />
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+                <X size={22} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Botão Central de Play/Pause */}
+          {/* Center play/pause button */}
           <View style={styles.centerControls}>
             <TouchableOpacity onPress={togglePlay} style={styles.playPauseBtn} activeOpacity={0.8}>
               {isPlaying ? (
@@ -145,6 +163,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: "#000",
     zIndex: 100,
+    width: "100%",
+    height: "100%",
   },
   video: {
     position: "absolute",
@@ -152,6 +172,8 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
+    width: "100%",
+    height: "100%",
   },
   touchOverlay: {
     position: "absolute",
@@ -232,6 +254,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     flex: 1,
     marginRight: 16,
+  },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  favBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   closeBtn: {
     width: 38,

@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import { IptvSettings } from "./settings";
+import { normalizeLogoUrl } from "./media";
 
 export type ContentType = "live" | "movie" | "series";
 
@@ -171,7 +172,7 @@ export async function fetchIptvData(
         items.push({
           id: `live:${ch.stream_id}:${stableHash(`${ch.name}|${group}|${hlsUrl}`)}`,
           name: ch.name || `Canal ${ch.stream_id}`,
-          logo: ch.stream_icon || "",
+          logo: normalizeLogoUrl(server, ch.stream_icon),
           group,
           url: hlsUrl,
           fallbackUrl: tsUrl,
@@ -206,7 +207,7 @@ export async function fetchIptvData(
         items.push({
           id: `movie:${m.stream_id}:${stableHash(`${m.name}|${group}|${movieUrl}`)}`,
           name: m.name || `Filme ${m.stream_id}`,
-          logo: m.stream_icon || "",
+          logo: normalizeLogoUrl(server, m.stream_icon),
           group,
           url: movieUrl,
           type: "movie",
@@ -239,7 +240,7 @@ export async function fetchIptvData(
         items.push({
           id: `series:${s.series_id}:${stableHash(`${s.name}|${group}|placeholderUrl`)}`,
           name: s.name || `Série ${s.series_id}`,
-          logo: s.cover || "",
+          logo: normalizeLogoUrl(server, s.cover),
           group,
           url: placeholderUrl,
           type: "series",
