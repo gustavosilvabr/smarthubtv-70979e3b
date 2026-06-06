@@ -85,13 +85,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
     ],
-    scripts: [
-      {
-        src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5176993182609305",
-        async: true,
-        crossOrigin: "anonymous",
-      },
-    ],
+    // AdSense is injected client-side after hydration (see RootComponent)
+    // to avoid hydration mismatches from auto-injected <ins> tags.
   }),
   shellComponent: RootShell,
   component: RootComponent,
