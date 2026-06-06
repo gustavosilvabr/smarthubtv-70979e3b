@@ -109,21 +109,18 @@ async function handle(request: Request, method: "GET" | "HEAD") {
 }
 
 function rewritePlaylist(text: string, baseUrl: string) {
-  let output = text.split(/\r?\n/).map((line) => {
+  // Only rewrite segment/sub-playlist URLs so they pass through the proxy.
+  // Do NOT mutate #EXT-X-TARGETDURATION or other tags — lying to the
+  // player about segment duration breaks its buffer math and causes stalls.
+  return text.split(/\r?\n/).map((line) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) return line;
-    const absolute = new URL(trimmed, baseUrl).toString();
-    return `/api/stream?u=${encodeURIComponent(absolute)}`;
+    try {
+      const absolute = new URL(trimmed, baseUrl).toString();
+      return `/api/stream?u=${encodeURIComponent(absolute)}`;
+    } catch {
+      return line;
+    }
   }).join("\n");
-
-  // Keep reasonable target duration (3-8 seconds for stable playback)
-  if (output.includes("#EXT-X-TARGETDURATION")) {
-    output = output.replace(/#EXT-X-TARGETDURATION:\s*(\d+)/g, (_, dur) => {
-      const duration = parseInt(dur, 10);
-      const optimized = Math.max(3, Math.min(8, duration));
-      return `#EXT-X-TARGETDURATION:${optimized}`;
-    });
-  }
-
-  return output;
 }
+
