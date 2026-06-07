@@ -112,8 +112,10 @@ export function LiveTvScreen({
   const [pinPending, setPinPending] = useState<string | null>(null);
   const [unlockedAdult, setUnlockedAdult] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFullscreenControls, setShowFullscreenControls] = useState(true);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fullscreenHideTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
@@ -286,6 +288,35 @@ export function LiveTvScreen({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [visibleChannels, selected, selectChannel]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const scheduleHide = () => {
+      if (fullscreenHideTimerRef.current) clearTimeout(fullscreenHideTimerRef.current);
+      setShowFullscreenControls(true);
+      fullscreenHideTimerRef.current = setTimeout(() => {
+        setShowFullscreenControls(false);
+      }, 5000);
+    };
+
+    const handleMouseMove = () => scheduleHide();
+    const handleClick = () => scheduleHide();
+    const handleKeyPress = () => scheduleHide();
+
+    scheduleHide();
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("click", handleClick);
+    document.addEventListener("keydown", handleKeyPress);
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("keydown", handleKeyPress);
+      if (fullscreenHideTimerRef.current) clearTimeout(fullscreenHideTimerRef.current);
+    };
+  }, [isFullscreen]);
 
   const counts = useMemo(
     () => ({
@@ -474,7 +505,9 @@ export function LiveTvScreen({
             )}
 
             {isFullscreen && selected && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent px-4 sm:px-8 py-3 sm:py-6">
+              <div className={`pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent px-4 sm:px-8 py-3 sm:py-6 transition-opacity duration-300 ${
+                showFullscreenControls ? "opacity-100" : "opacity-0"
+              }`}>
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-wide">
                   {selected.name}
                 </div>
@@ -485,7 +518,9 @@ export function LiveTvScreen({
             )}
 
             {isFullscreen && (
-              <div className="pointer-events-none absolute right-4 sm:right-6 inset-y-0 flex flex-col items-center justify-center gap-6">
+              <div className={`pointer-events-none absolute right-4 sm:right-6 inset-y-0 flex flex-col items-center justify-center gap-6 transition-opacity duration-300 ${
+                showFullscreenControls ? "opacity-100" : "opacity-0"
+              }`}>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
