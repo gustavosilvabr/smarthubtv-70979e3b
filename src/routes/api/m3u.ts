@@ -100,7 +100,9 @@ export const Route = createFileRoute("/api/m3u")({
             } catch (e) {
               try {
                 write(`\n# ERROR: ${(e as Error).message}\n`);
-              } catch {}
+              } catch {
+                // The stream controller may already be closed after an upstream failure.
+              }
               controller.error(e);
             }
           },

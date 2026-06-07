@@ -42,7 +42,9 @@ function ErrorComponent({ error }: { error: Error }) {
       sessionStorage.clear();
       // Also clear localStorage just in case they were left behind from previous versions
       localStorage.clear();
-    } catch {}
+    } catch {
+      // Storage can be unavailable in privacy-restricted browsers.
+    }
     
     // Force immediate reload to the root URL
     window.location.href = "/";

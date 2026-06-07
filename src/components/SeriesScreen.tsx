@@ -15,6 +15,8 @@ import {
   Clock,
   ArrowLeft,
   ShieldAlert,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
@@ -59,6 +61,7 @@ export function SeriesScreen({
   const [infoError, setInfoError] = useState<string | null>(null);
   const [season, setSeason] = useState<number | null>(null);
   const [playing, setPlaying] = useState<M3UItem | null>(null);
+  const [muted, setMuted] = useState(true);
   const [visibleCount, setVisibleCount] = useState(200);
   const [pinPending, setPinPending] = useState<string | null>(null);
   const [unlockedAdult, setUnlockedAdult] = useState(false);
@@ -73,7 +76,13 @@ export function SeriesScreen({
   useGsapEntrance(headerRef, { y: -20, opacity: 0, duration: 0.5 });
   useGsapEntrance(sidebarRef, { x: -30, opacity: 0, duration: 0.6, delay: 0.1 });
   useGsapEntrance(listWrapRef, { y: 20, opacity: 0, duration: 0.6, delay: 0.2 });
-  useGsapEntrance(playerWrapRef, { scale: 0.95, opacity: 0, duration: 0.6, delay: 0.3, ease: "back.out(1.2)" });
+  useGsapEntrance(playerWrapRef, {
+    scale: 0.95,
+    opacity: 0,
+    duration: 0.6,
+    delay: 0.3,
+    ease: "back.out(1.2)",
+  });
 
   // Floating ambient background
   useGSAP(
@@ -89,14 +98,18 @@ export function SeriesScreen({
         stagger: 0.5,
       });
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const raw = sessionStorage.getItem(RECENTS_KEY);
       if (raw) {
-        try { setRecents(JSON.parse(raw)); } catch { }
+        try {
+          setRecents(JSON.parse(raw));
+        } catch {
+          // Ignore invalid recents from an older session.
+        }
       }
     }
   }, []);
@@ -106,7 +119,9 @@ export function SeriesScreen({
     return () => clearTimeout(t);
   }, [chanQuery]);
 
-  useEffect(() => { setVisibleCount(200); }, [category, chanQueryDebounced]);
+  useEffect(() => {
+    setVisibleCount(200);
+  }, [category, chanQueryDebounced]);
 
   const realCats = useMemo(() => {
     const map = new Map<string, number>();
@@ -171,7 +186,11 @@ export function SeriesScreen({
     setPlaying(null);
     setRecents((prev) => {
       const next = [it, ...prev.filter((x) => x.id !== it.id)].slice(0, MAX_RECENTS);
-      try { sessionStorage.setItem(RECENTS_KEY, JSON.stringify(next)); } catch { }
+      try {
+        sessionStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+      } catch {
+        // Recents remain optional when storage is unavailable.
+      }
       return next;
     });
   };
@@ -183,7 +202,8 @@ export function SeriesScreen({
       setSeason(null);
       return;
     }
-    const seriesId = String(selected.streamId || "").replace(/^series-/, "") ||
+    const seriesId =
+      String(selected.streamId || "").replace(/^series-/, "") ||
       selected.url.replace("xtream-series://", "");
     if (!seriesId) return;
     let cancelled = false;
@@ -202,9 +222,15 @@ export function SeriesScreen({
         setInfo(data);
         setSeason(data.seasons[0] ?? null);
       })
-      .catch((e) => { if (!cancelled) setInfoError((e as Error).message); })
-      .finally(() => { if (!cancelled) setLoadingInfo(false); });
-    return () => { cancelled = true; };
+      .catch((e) => {
+        if (!cancelled) setInfoError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingInfo(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [selected, settingsQuery]);
 
   const episodesForSeason = useMemo(() => {
@@ -222,10 +248,19 @@ export function SeriesScreen({
       url: ep.url,
       type: "series",
     };
+    setMuted(true);
     setPlaying(item);
   };
 
   const { loading, error, retry } = useHlsPlayer(videoRef, playing);
+
+  const toggleSound = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setMuted(nextMuted);
+  };
 
   const goFullscreen = async () => {
     const el = playerWrapRef.current;
@@ -233,7 +268,9 @@ export function SeriesScreen({
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await el.requestFullscreen();
-    } catch (e) { console.error("[fullscreen]", e); }
+    } catch (e) {
+      console.error("[fullscreen]", e);
+    }
   };
 
   const counts = useMemo(() => {
@@ -252,21 +289,35 @@ export function SeriesScreen({
       : "";
 
   return (
-    <div ref={containerRef} className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground">
+    <div
+      ref={containerRef}
+      className="relative flex h-screen min-h-screen flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(88,28,135,0.35)_0%,_#0a0613_55%,_#050308_100%)] text-foreground"
+    >
       {/* Ambient background */}
       <div className="pointer-events-none absolute inset-0">
         <div className="ambient-bubble absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/20 blur-[140px]" />
         <div className="ambient-bubble absolute bottom-[-160px] left-[-100px] h-[380px] w-[380px] rounded-full bg-primary/15 blur-[140px]" />
       </div>
 
-      <header ref={headerRef} className="relative z-10 flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur">
-        <button onClick={onBack} aria-label="Voltar" className="grid h-10 sm:h-11 w-10 sm:w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10">
+      <header
+        ref={headerRef}
+        className="relative z-10 flex items-center gap-2 sm:gap-3 border-b border-white/5 bg-black/40 px-2 sm:px-4 py-2 sm:py-3 backdrop-blur"
+      >
+        <button
+          onClick={onBack}
+          aria-label="Voltar"
+          className="grid h-10 sm:h-11 w-10 sm:w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10"
+        >
           <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
         <div className="relative mx-auto w-full max-w-2xl">
           <Search className="pointer-events-none absolute left-3 sm:left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/50" />
-          <input value={chanQuery} onChange={(e) => setChanQuery(e.target.value)} placeholder="Search"
-            className="h-10 sm:h-11 w-full rounded-full border border-white/10 bg-white/5 pl-9 sm:pl-11 pr-4 text-xs sm:text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20" />
+          <input
+            value={chanQuery}
+            onChange={(e) => setChanQuery(e.target.value)}
+            placeholder="Search"
+            className="h-10 sm:h-11 w-full rounded-full border border-white/10 bg-white/5 pl-9 sm:pl-11 pr-4 text-xs sm:text-sm text-white placeholder:text-white/40 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20"
+          />
         </div>
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <div className="hidden md:block">
@@ -281,31 +332,70 @@ export function SeriesScreen({
 
       <div className="relative z-10 grid min-h-0 flex-1 gap-2 p-2 sm:gap-3 sm:p-3 md:gap-4 md:p-4 grid-cols-1 sm:grid-cols-[200px_240px_minmax(0,1fr)] lg:grid-cols-[230px_280px_minmax(0,1fr)] xl:grid-cols-[260px_320px_minmax(0,1fr)] sm:grid-rows-1">
         {/* Categories */}
-        <aside ref={sidebarRef} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto max-h-[180px] sm:max-h-none sm:h-full">
+        <aside
+          ref={sidebarRef}
+          className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur row-start-2 col-span-1 sm:row-start-auto sm:col-span-auto max-h-[180px] sm:max-h-none sm:h-full"
+        >
           <div className="border-b border-white/5 p-3">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40" />
-              <input value={catQuery} onChange={(e) => setCatQuery(e.target.value)} placeholder="Search in categories"
-                className="h-10 w-full rounded-lg border border-white/10 bg-black/30 pl-9 pr-3 text-xs uppercase tracking-wide text-white placeholder:text-white/40 outline-none focus:border-amber-400/60" />
+              <input
+                value={catQuery}
+                onChange={(e) => setCatQuery(e.target.value)}
+                placeholder="Search in categories"
+                className="h-10 w-full rounded-lg border border-white/10 bg-black/30 pl-9 pr-3 text-xs uppercase tracking-wide text-white placeholder:text-white/40 outline-none focus:border-amber-400/60"
+              />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-2 py-2">
-            <CatBtn icon={LayoutGrid} label="All" count={counts.all} active={category === "all"} onClick={() => setCategory("all")} />
-            <CatBtn icon={Clock} label="Recently Viewed" count={counts.recent} active={category === "recent"} onClick={() => setCategory("recent")} />
-            <CatBtn icon={Star} label="Favorite" count={counts.favorites} active={category === "favorites"} onClick={() => setCategory("favorites")} />
+            <CatBtn
+              icon={LayoutGrid}
+              label="All"
+              count={counts.all}
+              active={category === "all"}
+              onClick={() => setCategory("all")}
+            />
+            <CatBtn
+              icon={Clock}
+              label="Recently Viewed"
+              count={counts.recent}
+              active={category === "recent"}
+              onClick={() => setCategory("recent")}
+            />
+            <CatBtn
+              icon={Star}
+              label="Favorite"
+              count={counts.favorites}
+              active={category === "favorites"}
+              onClick={() => setCategory("favorites")}
+            />
             <div className="my-2 h-px bg-white/5" />
             {filteredCats.map((c) => (
-              <CatBtn key={c.name} label={c.name} count={c.count} active={category === c.name} isAdult={isAdultCategory(c.name)} onClick={() => handleCategoryClick(c.name)} />
+              <CatBtn
+                key={c.name}
+                label={c.name}
+                count={c.count}
+                active={category === c.name}
+                isAdult={isAdultCategory(c.name)}
+                onClick={() => handleCategoryClick(c.name)}
+              />
             ))}
-            {filteredCats.length === 0 && <div className="px-3 py-4 text-center text-xs text-white/40">Nenhuma categoria</div>}
+            {filteredCats.length === 0 && (
+              <div className="px-3 py-4 text-center text-xs text-white/40">Nenhuma categoria</div>
+            )}
           </div>
         </aside>
 
         {/* Series list */}
-        <section ref={listWrapRef} className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 row-start-3 sm:row-start-auto sm:col-span-auto max-h-[300px] sm:max-h-none sm:h-full">
+        <section
+          ref={listWrapRef}
+          className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#140a24]/80 backdrop-blur order-3 sm:order-none col-span-1 row-start-3 sm:row-start-auto sm:col-span-auto max-h-[300px] sm:max-h-none sm:h-full"
+        >
           <div className="flex-1 overflow-y-auto p-2">
             {visibleSeries.length === 0 ? (
-              <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">Nenhuma série encontrada.</div>
+              <div className="grid h-full place-items-center px-6 text-center text-sm text-white/40">
+                Nenhuma série encontrada.
+              </div>
             ) : (
               <>
                 <ul className="space-y-1.5">
@@ -313,17 +403,57 @@ export function SeriesScreen({
                     const active = selected?.id === s.id;
                     return (
                       <li key={s.id}>
-                        <button onClick={() => selectSeries(s)} className={[
-                          "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
-                          active ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
-                            : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
-                        ].join(" ")}>
-                          <span className={["w-8 shrink-0 text-right text-sm font-bold tabular-nums", active ? "text-amber-300" : "text-white/40"].join(" ")}>{idx + 1}</span>
-                          <span className={["grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10", active ? "bg-amber-400/15 text-amber-300" : "bg-white/5 text-white/70"].join(" ")}>
-                            {s.logo ? <img src={getDisplayImageUrl(s.logo)} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Tv className="h-4 w-4" />}
+                        <button
+                          onClick={() => selectSeries(s)}
+                          className={[
+                            "group flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition focus:outline-none",
+                            active
+                              ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
+                              : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
+                          ].join(" ")}
+                        >
+                          <span
+                            className={[
+                              "w-8 shrink-0 text-right text-sm font-bold tabular-nums",
+                              active ? "text-amber-300" : "text-white/40",
+                            ].join(" ")}
+                          >
+                            {idx + 1}
                           </span>
-                          <span className={["min-w-0 flex-1 truncate text-sm font-medium", active ? "text-amber-300" : "text-white/90"].join(" ")}>{s.name}</span>
-                          {favorites.has(s.id) && <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />}
+                          <span
+                            className={[
+                              "grid h-12 w-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-white/10",
+                              active
+                                ? "bg-amber-400/15 text-amber-300"
+                                : "bg-white/5 text-white/70",
+                            ].join(" ")}
+                          >
+                            {s.logo ? (
+                              <img
+                                src={getDisplayImageUrl(s.logo)}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <Tv className="h-4 w-4" />
+                            )}
+                          </span>
+                          <span
+                            className={[
+                              "min-w-0 flex-1 truncate text-sm font-medium",
+                              active ? "text-amber-300" : "text-white/90",
+                            ].join(" ")}
+                          >
+                            {s.name}
+                          </span>
+                          {favorites.has(s.id) && (
+                            <Heart className="h-3.5 w-3.5 shrink-0 fill-amber-300 text-amber-300" />
+                          )}
                         </button>
                       </li>
                     );
@@ -344,39 +474,64 @@ export function SeriesScreen({
 
         {/* Right: player + episodes */}
         <section className="flex min-h-0 flex-col gap-2 sm:gap-3 overflow-hidden order-2 col-span-1 sm:col-span-auto row-start-1 sm:row-start-auto">
-          <div ref={playerWrapRef} onClick={() => playing && goFullscreen()}
+          <div
+            ref={playerWrapRef}
+            onClick={() => playing && goFullscreen()}
             className="group relative w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shrink-0"
-            style={{ aspectRatio: '16/9', maxHeight: '42%' }}>
-
+            style={{ aspectRatio: "16/9", maxHeight: "42%" }}
+          >
             {/* Video always mounted so autoplay works on first click */}
             <video
               ref={videoRef}
               autoPlay
+              muted={muted}
               playsInline
               controls={true}
               controlsList="nodownload"
               className="h-full w-full bg-black"
-              style={{ display: playing ? 'block' : 'none' }}
+              style={{ display: playing ? "block" : "none" }}
             />
 
+            {playing && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  toggleSound();
+                }}
+                className="absolute left-2 top-2 z-30 inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/15 transition hover:bg-black/90"
+                aria-label={muted ? "Ativar som" : "Desativar som"}
+              >
+                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                <span className="hidden sm:inline">{muted ? "Ativar som" : "Som ativo"}</span>
+              </button>
+            )}
+
             {/* Poster / placeholder when not playing */}
-            {!playing && (
-              posterUrl ? (
-                <img src={posterUrl} alt={selected?.name || ""} className="absolute inset-0 h-full w-full object-cover" />
+            {!playing &&
+              (posterUrl ? (
+                <img
+                  src={posterUrl}
+                  alt={selected?.name || ""}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
               ) : (
                 <div className="absolute inset-0 grid place-items-center text-white/40">
                   <Tv className="h-16 w-16" strokeWidth={1.2} />
                 </div>
-              )
-            )}
+              ))}
 
             {/* Series info overlay on poster */}
             {!playing && selected && (
               <div className="pointer-events-none absolute inset-0 grid place-items-end bg-gradient-to-t from-black/80 via-transparent to-transparent p-4">
                 <div className="pointer-events-auto max-w-xl">
-                  <div className="text-xl font-bold text-white drop-shadow">{info?.name || selected.name}</div>
+                  <div className="text-xl font-bold text-white drop-shadow">
+                    {info?.name || selected.name}
+                  </div>
                   {info?.genre && <div className="mt-1 text-xs text-white/70">{info.genre}</div>}
-                  {info?.plot && <p className="mt-1.5 line-clamp-2 text-xs text-white/80">{info.plot}</p>}
+                  {info?.plot && (
+                    <p className="mt-1.5 line-clamp-2 text-xs text-white/80">{info.plot}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -385,17 +540,24 @@ export function SeriesScreen({
             {playing && loading && (
               <div className="absolute inset-0 grid place-items-center bg-black/70 text-white">
                 <div className="flex flex-col items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
-                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-300" /> Carregando episódio...
+                  <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-300" />{" "}
+                  Carregando episódio...
                 </div>
               </div>
             )}
 
             {/* Error overlay */}
             {playing && !loading && error && (
-              <div onClick={(e) => e.stopPropagation()} className="absolute inset-0 grid place-items-center bg-black/85 p-6 text-center text-white">
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute inset-0 grid place-items-center bg-black/85 p-6 text-center text-white"
+              >
                 <div className="max-w-md">
                   <p className="text-sm">{error}</p>
-                  <button onClick={retry} className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black hover:bg-amber-300">
+                  <button
+                    onClick={retry}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-400 px-4 py-2 text-xs font-bold uppercase tracking-wider text-black hover:bg-amber-300"
+                  >
                     <RotateCcw className="h-3.5 w-3.5" /> Tentar novamente
                   </button>
                 </div>
@@ -407,13 +569,22 @@ export function SeriesScreen({
           {selected && (
             <div className="flex items-center justify-between gap-2 sm:gap-3 rounded-2xl border border-white/10 bg-[#140a24]/80 px-3 sm:px-4 py-2 sm:py-3 backdrop-blur">
               <div className="min-w-0">
-                <div className="truncate text-sm sm:text-base font-bold text-white">{info?.name || selected.name}</div>
+                <div className="truncate text-sm sm:text-base font-bold text-white">
+                  {info?.name || selected.name}
+                </div>
                 <div className="truncate text-xs text-white/50">
-                  {info ? `${info.seasons.length} temporada${info.seasons.length === 1 ? "" : "s"} · ${info.episodes.length} episódios` : selected.group}
+                  {info
+                    ? `${info.seasons.length} temporada${info.seasons.length === 1 ? "" : "s"} · ${info.episodes.length} episódios`
+                    : selected.group}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-                <Action active={favorites.has(selected.id)} onClick={() => onToggleFavorite(selected.id)} icon={Heart} label="Favorite" />
+                <Action
+                  active={favorites.has(selected.id)}
+                  onClick={() => onToggleFavorite(selected.id)}
+                  icon={Heart}
+                  label="Favorite"
+                />
                 {playing && (
                   <Action onClick={() => setPlaying(null)} icon={ArrowLeft} label="Voltar" />
                 )}
@@ -429,15 +600,23 @@ export function SeriesScreen({
                 <Loader2 className="h-6 w-6 animate-spin text-amber-300" />
               </div>
             ) : infoError ? (
-              <div className="grid h-full place-items-center px-6 text-center text-xs text-white/50">{infoError}</div>
+              <div className="grid h-full place-items-center px-6 text-center text-xs text-white/50">
+                {infoError}
+              </div>
             ) : info && info.seasons.length > 0 ? (
               <div className="flex h-full flex-col">
                 <div className="flex shrink-0 gap-1.5 sm:gap-2 overflow-x-auto border-b border-white/5 p-1.5 sm:p-2">
                   {info.seasons.map((s) => (
-                    <button key={s} onClick={() => setSeason(s)} className={[
-                      "shrink-0 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold uppercase tracking-wider transition",
-                      s === season ? "bg-amber-400 text-black" : "bg-white/5 text-white/80 hover:bg-white/10",
-                    ].join(" ")}>
+                    <button
+                      key={s}
+                      onClick={() => setSeason(s)}
+                      className={[
+                        "shrink-0 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold uppercase tracking-wider transition",
+                        s === season
+                          ? "bg-amber-400 text-black"
+                          : "bg-white/5 text-white/80 hover:bg-white/10",
+                      ].join(" ")}
+                    >
                       T{s}
                     </button>
                   ))}
@@ -451,18 +630,37 @@ export function SeriesScreen({
                         const isPlaying = playing?.url === ep.url;
                         return (
                           <li key={ep.id}>
-                            <button onClick={() => playEpisode(ep)} className={[
-                              "flex w-full items-center gap-2 sm:gap-3 rounded-xl border px-2 sm:px-3 py-2 text-left transition text-xs sm:text-sm",
-                              isPlaying
-                                ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
-                                : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
-                            ].join(" ")}>
-                              <span className={["grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums", isPlaying ? "bg-amber-400 text-black" : "bg-white/10 text-white/80"].join(" ")}>{ep.episode}</span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium text-white/90">{ep.title}</span>
-                                <span className="block text-[10px] text-white/40">T{ep.season} · E{ep.episode}{ep.duration ? ` · ${ep.duration}` : ""}</span>
+                            <button
+                              onClick={() => playEpisode(ep)}
+                              className={[
+                                "flex w-full items-center gap-2 sm:gap-3 rounded-xl border px-2 sm:px-3 py-2 text-left transition text-xs sm:text-sm",
+                                isPlaying
+                                  ? "border-amber-400/70 bg-gradient-to-r from-purple-700/60 to-purple-900/60"
+                                  : "border-white/5 bg-black/30 hover:border-white/15 hover:bg-purple-900/30",
+                              ].join(" ")}
+                            >
+                              <span
+                                className={[
+                                  "grid h-8 w-8 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums",
+                                  isPlaying
+                                    ? "bg-amber-400 text-black"
+                                    : "bg-white/10 text-white/80",
+                                ].join(" ")}
+                              >
+                                {ep.episode}
                               </span>
-                              <PlayCircle className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${isPlaying ? "text-amber-300" : "text-white/40"}`} />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-white/90">
+                                  {ep.title}
+                                </span>
+                                <span className="block text-[10px] text-white/40">
+                                  T{ep.season} · E{ep.episode}
+                                  {ep.duration ? ` · ${ep.duration}` : ""}
+                                </span>
+                              </span>
+                              <PlayCircle
+                                className={`h-4 w-4 sm:h-5 sm:w-5 shrink-0 ${isPlaying ? "text-amber-300" : "text-white/40"}`}
+                              />
                             </button>
                           </li>
                         );
@@ -472,7 +670,9 @@ export function SeriesScreen({
                 </div>
               </div>
             ) : (
-              <div className="grid h-full place-items-center px-6 text-center text-xs text-white/50">Selecione uma série para ver os episódios.</div>
+              <div className="grid h-full place-items-center px-6 text-center text-xs text-white/50">
+                Selecione uma série para ver os episódios.
+              </div>
             )}
           </div>
         </section>
@@ -491,39 +691,96 @@ export function SeriesScreen({
   );
 }
 
-function TopIcon({ icon: Icon, label, onClick }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick?: () => void }) {
+function TopIcon({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick?: () => void;
+}) {
   return (
-    <button onClick={onClick} aria-label={label} title={label} className="grid h-11 w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10">
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid h-11 w-11 place-items-center rounded-full bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10"
+    >
       <Icon className="h-5 w-5 text-white/80" />
     </button>
   );
 }
 
-function CatBtn({ icon: Icon, label, count, active, isAdult, onClick }: { icon?: React.ComponentType<{ className?: string }>; label: string; count: number; active: boolean; isAdult?: boolean; onClick: () => void }) {
+function CatBtn({
+  icon: Icon,
+  label,
+  count,
+  active,
+  isAdult,
+  onClick,
+}: {
+  icon?: React.ComponentType<{ className?: string }>;
+  label: string;
+  count: number;
+  active: boolean;
+  isAdult?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button onClick={onClick} className={[
-      "mb-1 flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition focus:outline-none",
-      active ? "border-amber-400/60 bg-gradient-to-r from-purple-700/70 to-purple-900/70 text-amber-300"
-        : isAdult
-        ? "border-red-900/40 bg-red-950/20 text-white/75 hover:border-red-700/50 hover:bg-red-950/40"
-        : "border-white/5 bg-black/20 text-white/85 hover:border-white/15 hover:bg-purple-900/30",
-    ].join(" ")}>
+    <button
+      onClick={onClick}
+      className={[
+        "mb-1 flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition focus:outline-none",
+        active
+          ? "border-amber-400/60 bg-gradient-to-r from-purple-700/70 to-purple-900/70 text-amber-300"
+          : isAdult
+            ? "border-red-900/40 bg-red-950/20 text-white/75 hover:border-red-700/50 hover:bg-red-950/40"
+            : "border-white/5 bg-black/20 text-white/85 hover:border-white/15 hover:bg-purple-900/30",
+      ].join(" ")}
+    >
       <span className="flex min-w-0 items-center gap-2">
         {Icon && <Icon className={`h-4 w-4 ${active ? "text-amber-300" : "text-white/60"}`} />}
-        {isAdult && !Icon && <ShieldAlert className={`h-3.5 w-3.5 shrink-0 ${active ? "text-amber-300" : "text-red-400/70"}`} />}
+        {isAdult && !Icon && (
+          <ShieldAlert
+            className={`h-3.5 w-3.5 shrink-0 ${active ? "text-amber-300" : "text-red-400/70"}`}
+          />
+        )}
         <span className="truncate font-semibold uppercase tracking-wide text-[11px]">{label}</span>
       </span>
-      <span className={["shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums", active ? "bg-amber-400/20 text-amber-200" : "bg-white/10 text-white/60"].join(" ")}>{count}</span>
+      <span
+        className={[
+          "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums",
+          active ? "bg-amber-400/20 text-amber-200" : "bg-white/10 text-white/60",
+        ].join(" ")}
+      >
+        {count}
+      </span>
     </button>
   );
 }
 
-function Action({ icon: Icon, label, onClick, active }: { icon: React.ComponentType<{ className?: string }>; label: string; onClick?: () => void; active?: boolean }) {
+function Action({
+  icon: Icon,
+  label,
+  onClick,
+  active,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick?: () => void;
+  active?: boolean;
+}) {
   return (
-    <button onClick={onClick} className={[
-      "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition",
-      active ? "border-amber-400/70 bg-amber-400/15 text-amber-300" : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10",
-    ].join(" ")}>
+    <button
+      onClick={onClick}
+      className={[
+        "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition",
+        active
+          ? "border-amber-400/70 bg-amber-400/15 text-amber-300"
+          : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10",
+      ].join(" ")}
+    >
       <Icon className={`h-4 w-4 ${active ? "fill-amber-300" : ""}`} />
       <span className="hidden sm:inline">{label}</span>
     </button>

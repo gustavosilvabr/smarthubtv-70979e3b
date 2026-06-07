@@ -67,7 +67,9 @@ function Dashboard() {
           setStage("loading");
         }
       }
-    } catch {}
+    } catch {
+      // Ignore invalid or unavailable session storage and show login normally.
+    }
     setBootDone(true);
   }, []);
 
@@ -138,7 +140,9 @@ function Dashboard() {
   const handleLogin = (next: IptvSettings) => {
     try {
       sessionStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
-    } catch {}
+    } catch {
+      // Login can continue even when session storage is unavailable.
+    }
     setItems([]);
     setSettings(next);
     setStage("loading");
@@ -147,7 +151,9 @@ function Dashboard() {
   const saveSettings = (next: IptvSettings) => {
     try {
       sessionStorage.setItem(IPTV_SETTINGS_KEY, JSON.stringify(next));
-    } catch {}
+    } catch {
+      // Settings remain active for this render when storage is unavailable.
+    }
     setItems([]);
     setPlaying(null);
     setOpenShow(null);
@@ -164,7 +170,9 @@ function Dashboard() {
       sessionStorage.removeItem("smarthub:live:recents");
       sessionStorage.removeItem("smarthub:movies:recents");
       sessionStorage.removeItem("smarthub:series:recents");
-    } catch {}
+    } catch {
+      // Logout still clears in-memory state when storage is unavailable.
+    }
     setItems([]);
     setView(null);
     setPlaying(null);
@@ -181,7 +189,9 @@ function Dashboard() {
       else next.add(id);
       try {
         sessionStorage.setItem(FAV_KEY, JSON.stringify([...next]));
-      } catch {}
+      } catch {
+        // Favorites remain active in memory when storage is unavailable.
+      }
       return next;
     });
   };

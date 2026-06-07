@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { Loader2, PictureInPicture2, RotateCcw, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Loader2, PictureInPicture2, RotateCcw, Volume2, VolumeX, X } from "lucide-react";
 import type { M3UItem } from "@/types/iptv";
 import { useHlsPlayer } from "@/hooks/useHlsPlayer";
 import { StabilityControls } from "@/components/StabilityControls";
@@ -11,6 +11,7 @@ interface Props {
 
 export function VideoPlayer({ item, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [muted, setMuted] = useState(true);
 
   const {
     loading,
@@ -49,6 +50,14 @@ export function VideoPlayer({ item, onClose }: Props) {
     }
   }
 
+  function toggleSound() {
+    const video = videoRef.current;
+    if (!video) return;
+    const nextMuted = !video.muted;
+    video.muted = nextMuted;
+    setMuted(nextMuted);
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 animate-in fade-in">
       <div className="relative w-full max-w-2xl">
@@ -85,10 +94,21 @@ export function VideoPlayer({ item, onClose }: Props) {
             ref={videoRef}
             controls
             autoPlay
+            muted={muted}
             playsInline
             controlsList="nodownload"
             className="h-full w-full"
           />
+
+          <button
+            type="button"
+            onClick={toggleSound}
+            className="absolute left-2 top-2 z-40 inline-flex items-center gap-2 rounded-full bg-black/70 px-3 py-2 text-xs font-semibold text-white ring-1 ring-white/15 transition hover:bg-black/90"
+            aria-label={muted ? "Ativar som" : "Desativar som"}
+          >
+            {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            <span className="hidden sm:inline">{muted ? "Ativar som" : "Som ativo"}</span>
+          </button>
 
           {statusMessage && !error && (
             <div className="absolute inset-x-0 bottom-4 top-12 z-20 flex items-center justify-center bg-background/80 text-foreground">
@@ -125,9 +145,7 @@ export function VideoPlayer({ item, onClose }: Props) {
           onQualityChange={setQualityLevel}
         />
 
-        <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground sm:mt-2">
-          {item.group}
-        </p>
+        <p className="mt-1.5 line-clamp-1 text-xs text-muted-foreground sm:mt-2">{item.group}</p>
       </div>
     </div>
   );

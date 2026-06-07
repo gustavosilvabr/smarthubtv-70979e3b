@@ -37,7 +37,7 @@ export function StabilityControls({
         title={enabled ? "Desativar modo estabilidade" : "Ativar modo estabilidade"}
       >
         {enabled ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
-        <span>{enabled ? "Internet Fraca" : "Modo Estabilidade"}</span>
+        <span>{enabled ? "Estabilidade ativa" : "Modo Estabilidade"}</span>
       </button>
 
       <div className="relative">

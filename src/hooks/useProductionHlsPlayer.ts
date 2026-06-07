@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy HLS event payloads are dynamic. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { M3UItem } from "@/types/iptv";
 
@@ -312,13 +313,15 @@ export function useProductionHlsPlayer(
       if (hlsRef.current) {
         try {
           hlsRef.current.destroy();
-        } catch {}
+        } catch {
+          // The HLS instance may already be detached.
+        }
         hlsRef.current = null;
       }
       video.pause();
       video.src = "";
     };
-  }, [item, attempt, startHeartbeat, reconnect]);
+  }, [item, attempt, startHeartbeat, reconnect, videoRef]);
 
   const handleRetry = useCallback(() => {
     reconnectCountRef.current = 0;

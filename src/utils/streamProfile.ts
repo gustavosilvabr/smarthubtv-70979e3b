@@ -73,13 +73,14 @@ function getBaseStreamPlaybackProfile(item: M3UItem | null | undefined): StreamP
 
   if (isLive) {
     const tier = classifyLiveChannelTier(item);
+    const heavy = tier === "4k" || tier === "fhd";
     return {
-      heavy: false,
-      forceStability: true,
-      minBufferSeconds: 6,
+      heavy,
+      forceStability: false,
+      minBufferSeconds: heavy ? 8 : tier === "hd" ? 5 : 3,
       maxHlsLevel: -1,
-      disableLiveEdgeChase: false,
-      preferTsFallback: false,
+      disableLiveEdgeChase: heavy,
+      preferTsFallback: true,
       hlsBufferScale: 1,
       autoTuned: false,
     };

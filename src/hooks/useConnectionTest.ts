@@ -27,7 +27,9 @@ export function useConnectionTest() {
         try {
           await fetch(testUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) });
           latencies.push(performance.now() - start);
-        } catch {}
+        } catch {
+          // A failed sample is reflected by the remaining successful pings.
+        }
         await new Promise(r => setTimeout(r, 100));
       }
       const latency = latencies.length ? Math.min(...latencies) : 100;
@@ -45,7 +47,9 @@ export function useConnectionTest() {
             bytes += value?.length || 0;
           }
         }
-      } catch {}
+      } catch {
+        // A failed download produces the minimum measured bandwidth.
+      }
       const duration = Math.max(performance.now() - start, 100);
       const bandwidth = (bytes * 8) / (duration / 1000) / 1_000_000; // Mbps
 

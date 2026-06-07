@@ -7,6 +7,7 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
 import { OptimizationModal } from "@/components/OptimizationModal";
+import { getStabilityMode, STABILITY_MODE_CHANGE_EVENT } from "@/utils/stabilityMode";
 
 export type HomeTileTarget = Tab | "settings";
 
@@ -18,6 +19,7 @@ interface Props {
 export function HomeTiles({ counts, onSelect }: Props) {
   const [now, setNow] = useState<Date | null>(null);
   const [optimizationModalOpen, setOptimizationModalOpen] = useState(false);
+  const [stabilityModeActive, setStabilityModeActive] = useState(false);
 
   useEffect(() => {
     setNow(new Date());
@@ -25,12 +27,23 @@ export function HomeTiles({ counts, onSelect }: Props) {
     return () => clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    const syncStabilityMode = () => setStabilityModeActive(getStabilityMode());
+    syncStabilityMode();
+    window.addEventListener(STABILITY_MODE_CHANGE_EVENT, syncStabilityMode);
+    return () => window.removeEventListener(STABILITY_MODE_CHANGE_EVENT, syncStabilityMode);
+  }, []);
+
   const handleOptimize = () => {
     setOptimizationModalOpen(true);
   };
 
-  const time = now ? now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
-  const date = now ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
+  const time = now
+    ? now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : "--:--";
+  const date = now
+    ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+    : "";
 
   const containerRef = useRef<HTMLDivElement>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
@@ -38,7 +51,13 @@ export function HomeTiles({ counts, onSelect }: Props) {
   const footerRef = useRef<HTMLDivElement>(null);
 
   useGsapEntrance(topBarRef, { y: -20, opacity: 0, duration: 0.6, ease: "power2.out" });
-  useGsapEntrance(gridRef, { y: 40, staggerSelector: ".tile-item", delay: 0.1, duration: 0.7, ease: "back.out(1.2)" });
+  useGsapEntrance(gridRef, {
+    y: 40,
+    staggerSelector: ".tile-item",
+    delay: 0.1,
+    duration: 0.7,
+    ease: "back.out(1.2)",
+  });
   useGsapEntrance(footerRef, { y: 10, delay: 0.5, duration: 0.5, ease: "power2.out" });
 
   useGSAP(
@@ -55,22 +74,27 @@ export function HomeTiles({ counts, onSelect }: Props) {
         stagger: 0.6,
       });
     },
-    { scope: containerRef }
+    { scope: containerRef },
   );
 
   return (
-    <div ref={containerRef} className="relative h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(126,34,206,0.25)_0%,_#0a0613_60%,_#050308_100%)] text-foreground">
+    <div
+      ref={containerRef}
+      className="relative h-screen w-full overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(126,34,206,0.25)_0%,_#0a0613_60%,_#050308_100%)] text-foreground"
+    >
       {/* Purple ambience */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="ambient-bubble absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/20 blur-[160px]" />
         <div className="ambient-bubble absolute bottom-[-200px] left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-primary/15 blur-[160px]" />
       </div>
 
-      <OptimizationModal isOpen={optimizationModalOpen} onClose={() => setOptimizationModalOpen(false)} />
+      <OptimizationModal
+        isOpen={optimizationModalOpen}
+        onClose={() => setOptimizationModalOpen(false)}
+      />
 
       {/* Full-height flex column — no scroll */}
       <div className="relative z-10 flex h-full flex-col px-3 sm:px-6 py-3 sm:py-4 mx-auto w-full max-w-[95vw] 2xl:max-w-[1600px]">
-
         {/* Top bar: Logo + Clock */}
         <div ref={topBarRef} className="flex items-center justify-between shrink-0">
           <Logo className="h-16 sm:h-20 md:h-24 lg:h-28 w-auto drop-shadow-[0_0_24px_rgba(168,85,247,0.6)]" />
@@ -81,21 +105,30 @@ export function HomeTiles({ counts, onSelect }: Props) {
         </div>
 
         {/* Tile grid — fills remaining height */}
-        <div ref={gridRef} className="mt-3 sm:mt-4 flex-1 grid gap-2 sm:gap-3 md:gap-4
+        <div
+          ref={gridRef}
+          className="mt-3 sm:mt-4 flex-1 grid gap-2 sm:gap-3 md:gap-4
           grid-cols-2 grid-rows-3
           sm:grid-cols-4 sm:grid-rows-2
           md:grid-cols-4 md:grid-rows-2
-          min-h-0">
-
+          min-h-0"
+        >
           {/* TV AO VIVO — ocupa 2 linhas no mobile (col 1-2, row 1) e col 1 em desktop */}
           <button
             onClick={() => onSelect("live")}
             className="tile-item group relative col-span-2 sm:col-span-1 sm:row-span-2 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-cyan-500 to-indigo-600 shadow-xl transition hover:scale-[1.015] hover:shadow-2xl focus:outline-none"
           >
             <div className="flex h-full flex-col items-center justify-center text-white p-3 sm:p-4">
-              <Radio className="h-10 w-10 sm:h-16 sm:w-16 md:h-20 md:w-20 drop-shadow-lg" strokeWidth={1.5} />
-              <div className="mt-2 sm:mt-3 text-lg sm:text-2xl md:text-3xl font-extrabold tracking-wide">TV AO VIVO</div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">{counts.live} canais</div>
+              <Radio
+                className="h-10 w-10 sm:h-16 sm:w-16 md:h-20 md:w-20 drop-shadow-lg"
+                strokeWidth={1.5}
+              />
+              <div className="mt-2 sm:mt-3 text-lg sm:text-2xl md:text-3xl font-extrabold tracking-wide">
+                TV AO VIVO
+              </div>
+              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">
+                {counts.live} canais
+              </div>
             </div>
           </button>
 
@@ -108,8 +141,12 @@ export function HomeTiles({ counts, onSelect }: Props) {
               <div className="grid h-10 w-10 sm:h-14 sm:w-14 place-items-center rounded-full border-[3px] border-white/90">
                 <Film className="h-5 w-5 sm:h-7 sm:w-7" />
               </div>
-              <div className="mt-2 text-base sm:text-xl md:text-2xl font-extrabold tracking-wide">FILMES</div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">{counts.movie} filmes</div>
+              <div className="mt-2 text-base sm:text-xl md:text-2xl font-extrabold tracking-wide">
+                FILMES
+              </div>
+              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">
+                {counts.movie} filmes
+              </div>
             </div>
           </button>
 
@@ -120,21 +157,32 @@ export function HomeTiles({ counts, onSelect }: Props) {
           >
             <div className="flex h-full flex-col items-center justify-center text-white p-3 sm:p-4">
               <Tv className="h-9 w-9 sm:h-12 sm:w-12 md:h-14 md:w-14" strokeWidth={1.5} />
-              <div className="mt-2 text-base sm:text-xl md:text-2xl font-extrabold tracking-wide">SÉRIES</div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">{counts.series} séries</div>
+              <div className="mt-2 text-base sm:text-xl md:text-2xl font-extrabold tracking-wide">
+                SÉRIES
+              </div>
+              <div className="mt-0.5 text-[11px] uppercase tracking-widest opacity-80">
+                {counts.series} séries
+              </div>
             </div>
           </button>
 
           {/* OTIMIZAR CANAIS */}
           <button
             onClick={handleOptimize}
-            className="tile-item group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-xl transition hover:scale-[1.015] hover:shadow-2xl focus:outline-none active:scale-95"
+            className={[
+              "tile-item group relative overflow-hidden rounded-2xl shadow-xl transition hover:scale-[1.015] hover:shadow-2xl focus:outline-none active:scale-95",
+              stabilityModeActive
+                ? "bg-gradient-to-br from-emerald-400 to-teal-600 ring-2 ring-emerald-300/50"
+                : "bg-gradient-to-br from-amber-400 to-orange-500",
+            ].join(" ")}
           >
             <div className="flex h-full flex-col items-center justify-center text-white p-3 sm:p-4">
               <Zap className="h-8 w-8 sm:h-11 sm:w-11 md:h-12 md:w-12 drop-shadow-lg group-hover:animate-pulse" />
-              <div className="mt-2 text-sm sm:text-lg md:text-xl font-extrabold tracking-wide">OTIMIZAR</div>
+              <div className="mt-2 text-sm sm:text-lg md:text-xl font-extrabold tracking-wide">
+                {stabilityModeActive ? "ESTABILIDADE" : "OTIMIZAR"}
+              </div>
               <div className="mt-0.5 text-[10px] uppercase tracking-widest opacity-90">
-                Canais
+                {stabilityModeActive ? "Modo ativo" : "Canais"}
               </div>
             </div>
           </button>
@@ -146,13 +194,18 @@ export function HomeTiles({ counts, onSelect }: Props) {
           >
             <div className="flex h-full items-center justify-center gap-2 sm:gap-3 text-white p-3 sm:p-4">
               <Settings className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7" />
-              <div className="text-sm sm:text-base md:text-lg font-extrabold tracking-wide">CONFIG</div>
+              <div className="text-sm sm:text-base md:text-lg font-extrabold tracking-wide">
+                CONFIG
+              </div>
             </div>
           </button>
         </div>
 
         {/* Footer */}
-        <div ref={footerRef} className="mt-2 shrink-0 flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+        <div
+          ref={footerRef}
+          className="mt-2 shrink-0 flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground"
+        >
           <span>Smart Hub Play TV · IPTV Player Premium</span>
           <span>Powered by Smart Hub</span>
         </div>

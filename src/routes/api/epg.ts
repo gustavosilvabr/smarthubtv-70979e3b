@@ -19,7 +19,9 @@ function b64decode(value: string): string {
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       return new TextDecoder("utf-8").decode(bytes);
     }
-  } catch {}
+  } catch {
+    // Some providers return plain text instead of valid base64.
+  }
   return value;
 }
 

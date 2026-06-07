@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { LIVE_AUTO_TUNE_EVENT } from "@/utils/liveAutoTune";
 import { probeLivePerformance } from "@/utils/livePerformanceProbe";
 import { pickLowestLevelIndex } from "@/utils/streamProfile";
+import {
+  getStabilityConfig,
+  setStabilityConfig,
+  STABILITY_MODE_CHANGE_EVENT,
+} from "@/utils/stabilityMode";
 
 export type QualityLevel = "low" | "medium" | "high" | "auto";
 
@@ -10,68 +15,64 @@ export interface StabilityModeConfig {
   qualityLevel: QualityLevel;
 }
 
-const STABILITY_MODE_STORAGE_KEY = "iptv_stability_mode";
+interface HlsQualityController {
+  levels?: Array<{ bitrate?: number; height?: number }>;
+  autoLevelCapping: number;
+  currentLevel: number;
+  loadLevel: number;
+  nextLevel: number;
+  nextAutoLevel: number;
+}
 
 export const QUALITY_LABELS: Record<QualityLevel, string> = {
   low: "Baixa",
-  medium: "Média",
+  medium: "Media",
   high: "Alta",
-  auto: "Automática",
+  auto: "Automatica",
 };
 
 export function useStabilityMode() {
   const [config, setConfig] = useState<StabilityModeConfig>(() => {
     if (typeof window === "undefined") {
-      return { enabled: true, qualityLevel: "low" };
+      return { enabled: true, qualityLevel: "auto" };
     }
-    try {
-      const stored = localStorage.getItem(STABILITY_MODE_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
-      const probe = probeLivePerformance();
-      return { enabled: probe.stabilityRecommended, qualityLevel: "low" };
-    } catch {
-      return { enabled: true, qualityLevel: "low" };
-    }
+
+    const probe = probeLivePerformance();
+    return getStabilityConfig({
+      enabled: probe.stabilityRecommended,
+      qualityLevel: "auto",
+    });
   });
 
   const saveConfig = useCallback((newConfig: StabilityModeConfig) => {
     setConfig(newConfig);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STABILITY_MODE_STORAGE_KEY, JSON.stringify(newConfig));
-    }
+    setStabilityConfig(newConfig);
   }, []);
 
   const toggleStabilityMode = useCallback((enabled: boolean) => {
-    setConfig((prev) => {
-      const next = { ...prev, enabled };
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STABILITY_MODE_STORAGE_KEY, JSON.stringify(next));
-      }
+    setConfig((previous) => {
+      const next = { ...previous, enabled };
+      setStabilityConfig(next);
       return next;
     });
   }, []);
 
-  const setQualityLevel = useCallback((level: QualityLevel) => {
-    setConfig((prev) => {
-      const next = { ...prev, qualityLevel: level };
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STABILITY_MODE_STORAGE_KEY, JSON.stringify(next));
-      }
+  const setQualityLevel = useCallback((qualityLevel: QualityLevel) => {
+    setConfig((previous) => {
+      const next = { ...previous, qualityLevel };
+      setStabilityConfig(next);
       return next;
     });
   }, []);
 
   useEffect(() => {
-    const syncFromAutoTune = () => {
-      try {
-        const stored = localStorage.getItem(STABILITY_MODE_STORAGE_KEY);
-        if (stored) setConfig(JSON.parse(stored));
-      } catch {
-        // ignora JSON inválido
-      }
+    const syncConfig = () => setConfig(getStabilityConfig());
+    window.addEventListener(LIVE_AUTO_TUNE_EVENT, syncConfig);
+    window.addEventListener(STABILITY_MODE_CHANGE_EVENT, syncConfig);
+    return () => {
+      window.removeEventListener(LIVE_AUTO_TUNE_EVENT, syncConfig);
+      window.removeEventListener(STABILITY_MODE_CHANGE_EVENT, syncConfig);
     };
-    window.addEventListener(LIVE_AUTO_TUNE_EVENT, syncFromAutoTune);
-    return () => window.removeEventListener(LIVE_AUTO_TUNE_EVENT, syncFromAutoTune);
   }, []);
 
   return { config, toggleStabilityMode, setQualityLevel, saveConfig };
@@ -89,7 +90,7 @@ export function resolveQualityIndex(
 }
 
 export function applyQualityCapToHls(
-  hls: any,
+  hls: HlsQualityController,
   maxLevel: number,
   levels?: Array<{ bitrate?: number; height?: number }>,
 ) {
@@ -97,13 +98,21 @@ export function applyQualityCapToHls(
   if (!available || available.length === 0) return;
 
   const capped = Math.max(0, Math.min(maxLevel, available.length - 1));
+  hls.autoLevelCapping = capped;
   hls.currentLevel = capped;
   hls.loadLevel = capped;
   hls.nextLevel = capped;
 }
 
+function enableAutomaticQuality(hls: HlsQualityController, maxLevel = -1) {
+  hls.autoLevelCapping = maxLevel;
+  hls.currentLevel = -1;
+  hls.loadLevel = -1;
+  hls.nextLevel = -1;
+}
+
 export function applyStabilityModeToHls(
-  hls: any,
+  hls: HlsQualityController,
   config: StabilityModeConfig,
   options?: { maxLevel?: number; forceLowest?: boolean },
 ) {
@@ -115,25 +124,16 @@ export function applyStabilityModeToHls(
     return;
   }
 
+  if (config.qualityLevel === "auto") {
+    enableAutomaticQuality(
+      hls,
+      options?.maxLevel !== undefined && options.maxLevel >= 0 ? options.maxLevel : -1,
+    );
+    return;
+  }
+
   if (options?.maxLevel !== undefined && options.maxLevel >= 0) {
     applyQualityCapToHls(hls, options.maxLevel, levels);
-    return;
-  }
-
-  if (config.enabled) {
-    const effectiveQuality: QualityLevel =
-      config.qualityLevel === "auto" ? "low" : config.qualityLevel;
-    const targetLevel = resolveQualityIndex(effectiveQuality, levels);
-    if (targetLevel >= 0) {
-      applyQualityCapToHls(hls, targetLevel, levels);
-    }
-    return;
-  }
-
-  if (config.qualityLevel === "auto") {
-    hls.currentLevel = -1;
-    hls.loadLevel = -1;
-    hls.nextLevel = -1;
     return;
   }
 
@@ -143,15 +143,24 @@ export function applyStabilityModeToHls(
   }
 }
 
-export function downgradeHlsLevel(hls: any): boolean {
+export function downgradeHlsLevel(hls: HlsQualityController): boolean {
   const levels = hls?.levels;
   if (!levels || levels.length <= 1) return false;
 
-  const current = hls.currentLevel >= 0 ? hls.currentLevel : hls.loadLevel;
+  const current =
+    hls.currentLevel >= 0
+      ? hls.currentLevel
+      : hls.autoLevelCapping >= 0
+        ? hls.autoLevelCapping
+        : levels.length - 1;
   const next = current > 0 ? current - 1 : pickLowestLevelIndex(levels);
   if (next === current) return false;
 
-  applyQualityCapToHls(hls, next, levels);
+  hls.autoLevelCapping = next;
+  hls.currentLevel = -1;
+  hls.loadLevel = -1;
+  hls.nextLevel = -1;
+  hls.nextAutoLevel = next;
   return true;
 }
 
@@ -170,20 +179,29 @@ export async function waitForBufferAndPlay(
   minBuffer: number = 5,
   maxWaitMs: number = 30000,
   onStatusChange?: (status: string) => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     onStatusChange?.("Carregando buffer para evitar travamentos...");
+
+    const abort = () => {
+      clearInterval(timer);
+      reject(new DOMException("Playback cancelled", "AbortError"));
+    };
 
     const timer = setInterval(() => {
       const buffered = getBufferAhead(video);
       const elapsed = Date.now() - startTime;
       if (buffered >= minBuffer || elapsed > maxWaitMs) {
         clearInterval(timer);
+        signal?.removeEventListener("abort", abort);
         onStatusChange?.("");
         video.play().then(resolve).catch(reject);
       }
     }, 250);
+
+    signal?.addEventListener("abort", abort, { once: true });
   });
 }
 
@@ -204,27 +222,27 @@ export function buildStabilityModeHlsConfig(isLive: boolean, heavy = false, buff
       {
         enableWorker: true,
         lowLatencyMode: false,
-        startLevel: 0,
+        startLevel: -1,
         capLevelToPlayerSize: true,
         maxBufferLength: 60,
         maxMaxBufferLength: 120,
         backBufferLength: 60,
-        maxBufferHole: 0.5,
+        maxBufferHole: 0.8,
         liveSyncDurationCount: 5,
         liveMaxLatencyDurationCount: 16,
         maxLiveSyncPlaybackRate: 1,
         startPosition: isLive ? -1 : 0,
-        manifestLoadingTimeOut: 12000,
-        levelLoadingTimeOut: 12000,
-        fragLoadingTimeOut: 12000,
-        fragLoadingMaxRetry: 8,
-        manifestLoadingMaxRetry: 6,
-        levelLoadingMaxRetry: 6,
+        manifestLoadingTimeOut: 30000,
+        levelLoadingTimeOut: 30000,
+        fragLoadingTimeOut: 35000,
+        fragLoadingMaxRetry: 9,
+        manifestLoadingMaxRetry: 7,
+        levelLoadingMaxRetry: 7,
         nudgeOffset: 0.1,
         nudgeMaxRetry: 6,
-        fragLoadingMaxRetryTimeout: isLive ? 8000 : 64000,
-        abrBandwidthFactor: 0.7,
-        abrBandwidthSafeFactor: 0.6,
+        fragLoadingMaxRetryTimeout: isLive ? 15000 : 64000,
+        abrBandWidthFactor: 0.7,
+        abrBandWidthUpFactor: 0.4,
         abrMaxWithRealBitrate: true,
         maxStarvationDelay: 6,
         maxLoadingDelay: 6,
@@ -237,30 +255,30 @@ export function buildStabilityModeHlsConfig(isLive: boolean, heavy = false, buff
     {
       enableWorker: true,
       lowLatencyMode: false,
-      startLevel: 0,
+      startLevel: -1,
       capLevelToPlayerSize: true,
-      maxBufferLength: 30,
+      maxBufferLength: 35,
       maxMaxBufferLength: 60,
-      backBufferLength: 30,
-      maxBufferHole: 0.5,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 10,
-      maxLiveSyncPlaybackRate: 1.05,
+      backBufferLength: 20,
+      maxBufferHole: 0.6,
+      liveSyncDurationCount: 4,
+      liveMaxLatencyDurationCount: 9,
+      maxLiveSyncPlaybackRate: 1.03,
       startPosition: isLive ? -1 : 0,
-      manifestLoadingTimeOut: 8000,
-      levelLoadingTimeOut: 8000,
-      fragLoadingTimeOut: 8000,
-      fragLoadingMaxRetry: 6,
-      manifestLoadingMaxRetry: 4,
-      levelLoadingMaxRetry: 4,
+      manifestLoadingTimeOut: 25000,
+      levelLoadingTimeOut: 25000,
+      fragLoadingTimeOut: 25000,
+      fragLoadingMaxRetry: 7,
+      manifestLoadingMaxRetry: 6,
+      levelLoadingMaxRetry: 6,
       nudgeOffset: 0.1,
       nudgeMaxRetry: 5,
-      fragLoadingMaxRetryTimeout: isLive ? 5000 : 64000,
-      abrBandwidthFactor: 0.8,
-      abrBandwidthSafeFactor: 0.7,
+      fragLoadingMaxRetryTimeout: isLive ? 12000 : 64000,
+      abrBandWidthFactor: 0.75,
+      abrBandWidthUpFactor: 0.45,
       abrMaxWithRealBitrate: true,
-      maxStarvationDelay: 4,
-      maxLoadingDelay: 4,
+      maxStarvationDelay: 5,
+      maxLoadingDelay: 5,
     },
     bufferScale,
   );

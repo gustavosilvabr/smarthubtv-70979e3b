@@ -1,3 +1,5 @@
+import { setStabilityConfig } from "@/utils/stabilityMode";
+
 const OPTIMIZATION_STATE_KEY = "smarthub:optimization-state";
 
 export interface OptimizationState {
@@ -10,17 +12,6 @@ export interface OptimizationState {
     maxConnections: number;
     connectionTimeout: number;
   };
-}
-
-export function getOptimizationState(): OptimizationState {
-  if (typeof window === "undefined") return getDefaultState();
-  try {
-    const stored = localStorage.getItem(OPTIMIZATION_STATE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    console.warn("Erro ao ler estado de otimização");
-  }
-  return getDefaultState();
 }
 
 function getDefaultState(): OptimizationState {
@@ -37,34 +28,39 @@ function getDefaultState(): OptimizationState {
   };
 }
 
+export function getOptimizationState(): OptimizationState {
+  if (typeof window === "undefined") return getDefaultState();
+  try {
+    const stored = localStorage.getItem(OPTIMIZATION_STATE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {
+    console.warn("Erro ao ler estado de otimizacao");
+  }
+  return getDefaultState();
+}
+
 export function saveOptimizationState(state: OptimizationState): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(OPTIMIZATION_STATE_KEY, JSON.stringify(state));
   } catch {
-    console.warn("Erro ao salvar estado de otimização");
+    console.warn("Erro ao salvar estado de otimizacao");
   }
 }
 
 export async function runOptimization(
-  onProgress: (step: number, total: number, message: string) => void
+  onProgress: (step: number, total: number, message: string) => void,
 ): Promise<OptimizationState> {
   const steps = [
-    { delay: 600, message: "Analisando canais...", step: 1 },
-    { delay: 800, message: "Otimizando qualidade de vídeo...", step: 2 },
-    { delay: 1000, message: "Configurando cache de streaming...", step: 3 },
-    { delay: 700, message: "Melhorando buffer de conexão...", step: 4 },
-    { delay: 900, message: "Sincronizando configurações...", step: 5 },
-    { delay: 600, message: "Limpando dados temporários...", step: 6 },
-    { delay: 800, message: "Aplicando otimizações...", step: 7 },
-    { delay: 500, message: "Finalizando...", step: 8 },
+    { delay: 200, message: "Ativando qualidade automatica...", step: 1 },
+    { delay: 250, message: "Configurando buffer estavel...", step: 2 },
+    { delay: 250, message: "Ativando reconexao automatica...", step: 3 },
+    { delay: 200, message: "Finalizando...", step: 4 },
   ];
-
-  const total = steps.length;
 
   for (const { delay, message, step } of steps) {
     await new Promise((resolve) => setTimeout(resolve, delay));
-    onProgress(step, total, message);
+    onProgress(step, steps.length, message);
   }
 
   const optimizedState: OptimizationState = {
@@ -73,9 +69,9 @@ export async function runOptimization(
     settings: {
       quality: "low",
       bufferSize: 60,
-      enableCache: true,
+      enableCache: false,
       maxConnections: 6,
-      connectionTimeout: 8000,
+      connectionTimeout: 25000,
     },
   };
 
@@ -85,53 +81,19 @@ export async function runOptimization(
 
 export function applyOptimization(): void {
   const state = getOptimizationState();
-  if (state.completed && typeof window !== "undefined") {
-    // Aplicar configurações globais otimizadas
-    try {
-      // Habilitar cache agressivo
-      if ("caches" in window) {
-        caches.open("streaming-cache").then((cache) => {
-          console.log("[Otimização] Cache de streaming ativado");
-        });
-      }
+  if (!state.completed || typeof window === "undefined") return;
 
-      // Salvar configurações de buffer
-      sessionStorage.setItem(
-        "smarthub:buffer-settings",
-        JSON.stringify({
-          minBuffer: 6,
-          maxBuffer: 60,
-          strategy: "aggressive",
-        })
-      );
-
-      // Limpar dados temporários antigos
-      try {
-        const keys = Object.keys(localStorage);
-        const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-
-        keys.forEach((key) => {
-          if (key.startsWith("smarthub:cache:")) {
-            const item = localStorage.getItem(key);
-            if (item) {
-              try {
-                const parsed = JSON.parse(item);
-                if (parsed.timestamp && parsed.timestamp < oneWeekAgo) {
-                  localStorage.removeItem(key);
-                }
-              } catch {
-                // ignorar
-              }
-            }
-          }
-        });
-      } catch {
-        // ignorar erro de limpeza
-      }
-
-      console.log("[Otimização] Configurações aplicadas com sucesso");
-    } catch (error) {
-      console.warn("[Otimização] Erro ao aplicar otimizações:", error);
-    }
+  try {
+    setStabilityConfig({ enabled: true, qualityLevel: "auto" });
+    sessionStorage.setItem(
+      "smarthub:buffer-settings",
+      JSON.stringify({
+        minBuffer: 6,
+        maxBuffer: 60,
+        strategy: "stable",
+      }),
+    );
+  } catch (error) {
+    console.warn("[Otimizacao] Erro ao aplicar configuracoes:", error);
   }
 }

@@ -24,11 +24,7 @@ interface BufferMetrics {
 function proxied(url: string) {
   if (typeof window === "undefined") return url;
   if (url.startsWith("/") || url.startsWith("blob:") || url.startsWith("data:")) return url;
-  let secureUrl = url;
-  if (secureUrl.startsWith("http://")) {
-    secureUrl = "https://" + secureUrl.slice(7);
-  }
-  return `/api/stream?u=${encodeURIComponent(secureUrl)}`;
+  return `/api/stream?u=${encodeURIComponent(url)}`;
 }
 
 export interface NetworkProbeResult {
@@ -235,7 +231,11 @@ async function measureReachGet(
     }
     return { ms, ok: false, error: `HTTP ${res.status}` };
   } catch (e) {
-    return { ms: Math.round(performance.now() - startedAt), ok: false, error: (e as Error).message };
+    return {
+      ms: Math.round(performance.now() - startedAt),
+      ok: false,
+      error: (e as Error).message,
+    };
   }
 }
 

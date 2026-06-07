@@ -15,19 +15,16 @@ interface Props {
 }
 
 export function SeriesModal({ show, onClose, onPlay }: Props) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const seasons = show ? [...show.seasons.keys()].sort((a, b) => a - b) : [];
   const [selected, setSelected] = useState<number | null>(null);
   const currentSeason = selected ?? seasons[0] ?? null;
 
-  if (!show) return null;
-  const episodes = currentSeason != null ? (show.seasons.get(currentSeason) ?? []) : [];
-  const imageUrl = getDisplayImageUrl(show.logo);
-
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
-
   useGSAP(
     () => {
+      if (!show) return;
+
       // Fade in overlay
       gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.3 });
       
@@ -47,6 +44,10 @@ export function SeriesModal({ show, onClose, onPlay }: Props) {
     },
     { dependencies: [show, currentSeason] }
   );
+
+  if (!show) return null;
+  const episodes = currentSeason != null ? (show.seasons.get(currentSeason) ?? []) : [];
+  const imageUrl = getDisplayImageUrl(show.logo);
 
   return (
     <div ref={overlayRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">

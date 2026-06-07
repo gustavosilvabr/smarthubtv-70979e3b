@@ -1,5 +1,6 @@
 import type { QualityLevel } from "@/hooks/useStabilityMode";
 import { LIVE_TIER_LABELS, type LiveChannelTier } from "@/utils/streamProfile";
+import { setStabilityConfig } from "@/utils/stabilityMode";
 
 export interface AutoTuneProbeInput {
   durationMs: number;
@@ -60,7 +61,7 @@ const TIER_BASE: Record<LiveChannelTier, Omit<TierAutoTune, "tier">> = {
   },
   hd: {
     minBufferSeconds: 8,
-    preferTsFallback: false,
+    preferTsFallback: true,
     forceStability: true,
     maxHlsLevel: -1,
     hlsBufferScale: 1,
@@ -69,7 +70,7 @@ const TIER_BASE: Record<LiveChannelTier, Omit<TierAutoTune, "tier">> = {
   },
   sd: {
     minBufferSeconds: 6,
-    preferTsFallback: false,
+    preferTsFallback: true,
     forceStability: true,
     maxHlsLevel: -1,
     hlsBufferScale: 1,
@@ -249,7 +250,7 @@ export function applyAutoTuneFromProbe(report: AutoTuneProbeInput): LiveAutoTune
 
   if (typeof window !== "undefined") {
     const stability = { enabled: state.stabilityEnabled, qualityLevel: state.globalQuality };
-    localStorage.setItem("iptv_stability_mode", JSON.stringify(stability));
+    setStabilityConfig(stability);
     window.dispatchEvent(new CustomEvent(LIVE_AUTO_TUNE_EVENT, { detail: state }));
   }
 
