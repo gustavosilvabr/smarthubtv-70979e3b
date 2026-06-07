@@ -6,7 +6,7 @@ import { useGsapEntrance } from "@/hooks/useGsapEntrance";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
-import { getStabilityMode, setStabilityMode } from "@/utils/stabilityMode";
+import { OptimizationModal } from "@/components/OptimizationModal";
 
 export type HomeTileTarget = Tab | "settings";
 
@@ -17,8 +17,7 @@ interface Props {
 
 export function HomeTiles({ counts, onSelect }: Props) {
   const [now, setNow] = useState<Date | null>(null);
-  const [stabilityMode, setStabilityModeState] = useState(getStabilityMode());
-  const [optimizeMsg, setOptimizeMsg] = useState<string | null>(null);
+  const [optimizationModalOpen, setOptimizationModalOpen] = useState(false);
 
   useEffect(() => {
     setNow(new Date());
@@ -27,11 +26,7 @@ export function HomeTiles({ counts, onSelect }: Props) {
   }, []);
 
   const handleOptimize = () => {
-    const newState = !stabilityMode;
-    setStabilityMode(newState);
-    setStabilityModeState(newState);
-    setOptimizeMsg(newState ? "✓ Modo estabilidade ativado" : "✓ Modo estabilidade desativado");
-    setTimeout(() => setOptimizeMsg(null), 3000);
+    setOptimizationModalOpen(true);
   };
 
   const time = now ? now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
@@ -70,6 +65,8 @@ export function HomeTiles({ counts, onSelect }: Props) {
         <div className="ambient-bubble absolute -top-40 left-1/2 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/20 blur-[160px]" />
         <div className="ambient-bubble absolute bottom-[-200px] left-1/2 h-[420px] w-[820px] -translate-x-1/2 rounded-full bg-primary/15 blur-[160px]" />
       </div>
+
+      <OptimizationModal isOpen={optimizationModalOpen} onClose={() => setOptimizationModalOpen(false)} />
 
       {/* Full-height flex column — no scroll */}
       <div className="relative z-10 flex h-full flex-col px-3 sm:px-6 py-3 sm:py-4 mx-auto w-full max-w-[95vw] 2xl:max-w-[1600px]">
@@ -131,17 +128,13 @@ export function HomeTiles({ counts, onSelect }: Props) {
           {/* OTIMIZAR CANAIS */}
           <button
             onClick={handleOptimize}
-            className={`tile-item group relative overflow-hidden rounded-2xl shadow-xl transition hover:scale-[1.015] focus:outline-none ${
-              stabilityMode
-                ? "bg-gradient-to-br from-amber-400 to-orange-500"
-                : "bg-gradient-to-br from-slate-600 to-slate-700"
-            }`}
+            className="tile-item group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-xl transition hover:scale-[1.015] hover:shadow-2xl focus:outline-none active:scale-95"
           >
             <div className="flex h-full flex-col items-center justify-center text-white p-3 sm:p-4">
-              <Zap className="h-8 w-8 sm:h-11 sm:w-11 md:h-12 md:w-12 drop-shadow-lg" />
+              <Zap className="h-8 w-8 sm:h-11 sm:w-11 md:h-12 md:w-12 drop-shadow-lg group-hover:animate-pulse" />
               <div className="mt-2 text-sm sm:text-lg md:text-xl font-extrabold tracking-wide">OTIMIZAR</div>
-              <div className="mt-0.5 text-[10px] uppercase tracking-widest opacity-80">
-                {stabilityMode ? "Ativo" : "Inativo"}
+              <div className="mt-0.5 text-[10px] uppercase tracking-widest opacity-90">
+                Canais
               </div>
             </div>
           </button>
@@ -163,13 +156,6 @@ export function HomeTiles({ counts, onSelect }: Props) {
           <span>Smart Hub Play TV · IPTV Player Premium</span>
           <span>Powered by Smart Hub</span>
         </div>
-
-        {/* Optimization feedback message */}
-        {optimizeMsg && (
-          <div className="fixed bottom-6 left-6 bg-emerald-500/90 text-white px-4 py-3 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <p className="text-sm font-semibold">{optimizeMsg}</p>
-          </div>
-        )}
       </div>
     </div>
   );
