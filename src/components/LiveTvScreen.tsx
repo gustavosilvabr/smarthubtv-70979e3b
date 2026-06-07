@@ -242,6 +242,11 @@ export function LiveTvScreen({
         await document.exitFullscreen();
       } else {
         await el.requestFullscreen();
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.paused) {
+            videoRef.current.play().catch(() => {});
+          }
+        }, 100);
       }
     } catch (e) {
       console.error("[fullscreen]", e);
@@ -429,8 +434,6 @@ export function LiveTvScreen({
               ref={videoRef}
               autoPlay
               playsInline
-              controls
-              controlsList="nodownload"
               className="h-full w-full bg-black"
             />
 
