@@ -112,8 +112,6 @@ export function LiveTvScreen({
   const [pinPending, setPinPending] = useState<string | null>(null);
   const [unlockedAdult, setUnlockedAdult] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showChannelInfo, setShowChannelInfo] = useState(false);
-  const [channelInfoTimeout, setChannelInfoTimeout] = useState<NodeJS.Timeout | null>(null);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -275,13 +273,6 @@ export function LiveTvScreen({
 
       if (nextIdx !== null && visibleChannels[nextIdx]) {
         selectChannel(visibleChannels[nextIdx]);
-
-        if (document.fullscreenElement) {
-          setShowChannelInfo(true);
-          if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
-          const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
-          setChannelInfoTimeout(timeout);
-        }
       }
     };
 
@@ -290,9 +281,8 @@ export function LiveTvScreen({
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("keydown", handleKeyDown);
-      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
     };
-  }, [visibleChannels, selected, selectChannel, channelInfoTimeout]);
+  }, [visibleChannels, selected, selectChannel]);
 
   const counts = useMemo(
     () => ({
@@ -482,20 +472,15 @@ export function LiveTvScreen({
               </div>
             )}
 
-            {isFullscreen && showChannelInfo && selected && (
-              <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pt-8 sm:pt-12">
-                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-xl bg-gradient-to-b from-black/80 via-black/60 to-transparent px-6 py-4 text-center shadow-2xl">
-                  <div className="text-lg sm:text-2xl font-bold text-amber-300">
+            {isFullscreen && selected && (
+              <div className="pointer-events-none absolute bottom-4 sm:bottom-6 left-4 sm:left-6">
+                <div className="bg-gradient-to-r from-black/90 via-black/80 to-black/70 px-4 sm:px-6 py-3 sm:py-4 rounded-lg backdrop-blur-sm border border-amber-400/20">
+                  <div className="text-xl sm:text-3xl font-bold text-white tracking-wide">
                     {selected.name}
                   </div>
-                  <div className="text-sm sm:text-base text-white/80 mt-1">
-                    CANAL {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)}
+                  <div className="text-xs sm:text-sm text-amber-300/90 mt-1 font-semibold">
+                    CANAL {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)} • {selected.group}
                   </div>
-                  {selected.group && (
-                    <div className="text-xs sm:text-sm text-white/60 mt-2">
-                      {selected.group}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -509,10 +494,6 @@ export function LiveTvScreen({
                     const prevIdx = currentIdx <= 0 ? visibleChannels.length - 1 : currentIdx - 1;
                     if (prevIdx >= 0 && visibleChannels[prevIdx]) {
                       selectChannel(visibleChannels[prevIdx]);
-                      setShowChannelInfo(true);
-                      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
-                      const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
-                      setChannelInfoTimeout(timeout);
                     }
                   }}
                   className="pointer-events-auto hover:scale-110 transition-transform"
@@ -528,10 +509,6 @@ export function LiveTvScreen({
                     const nextIdx = (currentIdx + 1) % visibleChannels.length;
                     if (nextIdx >= 0 && visibleChannels[nextIdx]) {
                       selectChannel(visibleChannels[nextIdx]);
-                      setShowChannelInfo(true);
-                      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
-                      const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
-                      setChannelInfoTimeout(timeout);
                     }
                   }}
                   className="pointer-events-auto hover:scale-110 transition-transform"
