@@ -77,10 +77,10 @@ function getBaseStreamPlaybackProfile(item: M3UItem | null | undefined): StreamP
       heavy: false,
       forceStability: true,
       minBufferSeconds: 6,
-      maxHlsLevel: 0,
+      maxHlsLevel: -1,
       disableLiveEdgeChase: false,
-      preferTsFallback: true,
-      hlsBufferScale: 1.2,
+      preferTsFallback: false,
+      hlsBufferScale: 1,
       autoTuned: false,
     };
   }

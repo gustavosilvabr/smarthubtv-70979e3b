@@ -12,7 +12,8 @@ import {
   type QualityLevel,
 } from "@/hooks/useStabilityMode";
 import { LIVE_AUTO_TUNE_EVENT } from "@/utils/liveAutoTune";
-import { getStreamPlaybackProfile } from "@/utils/streamProfile";
+import { getStreamPlaybackProfile, classifyLiveChannelTier } from "@/utils/streamProfile";
+import { selectProfileForTier, applyHlsProfile } from "@/utils/hlsProfileConfig";
 
 function proxied(url: string) {
   if (typeof window === "undefined") return url;
@@ -691,6 +692,12 @@ export function useHlsPlayer(
         pushEvent("engine: hls.js");
         const hls = new Hls(hlsConfig);
         hlsRef.current = hls;
+
+        if (isLive && item) {
+          const tier = classifyLiveChannelTier(item);
+          const hlsProfile = selectProfileForTier(tier);
+          applyHlsProfile(hls, hlsProfile);
+        }
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           startHlsPlayback(hls);
