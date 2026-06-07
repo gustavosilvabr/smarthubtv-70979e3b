@@ -69,29 +69,14 @@ export interface StreamPlaybackProfile {
 }
 
 function getBaseStreamPlaybackProfile(item: M3UItem | null | undefined): StreamPlaybackProfile {
-  const heavy = isHeavyStream(item);
   const isLive = item?.type === "live";
-
-  if (heavy && isLive) {
-    const tier = classifyLiveChannelTier(item);
-    return {
-      heavy: true,
-      forceStability: true,
-      minBufferSeconds: tier === "4k" ? 16 : tier === "fhd" ? 14 : 12,
-      maxHlsLevel: 0,
-      disableLiveEdgeChase: true,
-      preferTsFallback: tier === "4k" || tier === "fhd",
-      hlsBufferScale: 1,
-      autoTuned: false,
-    };
-  }
 
   if (isLive) {
     const tier = classifyLiveChannelTier(item);
     return {
       heavy: false,
       forceStability: true,
-      minBufferSeconds: tier === "hd" ? 8 : 6,
+      minBufferSeconds: 6,
       maxHlsLevel: -1,
       disableLiveEdgeChase: false,
       preferTsFallback: false,
