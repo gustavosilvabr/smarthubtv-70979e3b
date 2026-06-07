@@ -24,12 +24,10 @@ export const Route = createFileRoute("/api/m3u")({
 
             try {
               // LIVE
-              const [liveCatsRes, liveStreamsRes] = await Promise.all([
-                xtreamFetch(settings, "get_live_categories"),
-                xtreamFetch(settings, "get_live_streams"),
+              const [liveCats, liveStreams] = await Promise.all([
+                xtreamArray<LiveCategory>(settings, "get_live_categories"),
+                xtreamArray<LiveStream>(settings, "get_live_streams"),
               ]);
-              const liveCats = (await liveCatsRes.json()) as LiveCategory[];
-              const liveStreams = (await liveStreamsRes.json()) as LiveStream[];
               const liveCatMap = new Map(liveCats.map((c) => [String(c.category_id), c.category_name]));
               write("#EXTM3U\n");
               for (const ch of liveStreams) {
@@ -49,12 +47,10 @@ export const Route = createFileRoute("/api/m3u")({
               liveCatMap.clear();
 
               // VOD
-              const [vodCatsRes, vodStreamsRes] = await Promise.all([
-                xtreamFetch(settings, "get_vod_categories"),
-                xtreamFetch(settings, "get_vod_streams"),
+              const [vodCats, vodStreams] = await Promise.all([
+                xtreamArray<VodCategory>(settings, "get_vod_categories"),
+                xtreamArray<VodStream>(settings, "get_vod_streams"),
               ]);
-              const vodCats = (await vodCatsRes.json()) as VodCategory[];
-              const vodStreams = (await vodStreamsRes.json()) as VodStream[];
               const vodCatMap = new Map(vodCats.map((c) => [String(c.category_id), c.category_name]));
               write("\n");
               for (const m of vodStreams) {
@@ -76,12 +72,10 @@ export const Route = createFileRoute("/api/m3u")({
               // SERIES — emit one entry per series directly from Xtream API.
               // Episodes are fetched on-demand by /api/series-info, which keeps
               // this endpoint fast and guarantees every series shows up.
-              const [seriesCatsRes, seriesRes] = await Promise.all([
-                xtreamFetch(settings, "get_series_categories"),
-                xtreamFetch(settings, "get_series"),
+              const [seriesCats, seriesList] = await Promise.all([
+                xtreamArray<VodCategory>(settings, "get_series_categories"),
+                xtreamArray<SeriesStream>(settings, "get_series"),
               ]);
-              const seriesCats = (await seriesCatsRes.json()) as VodCategory[];
-              const seriesList = (await seriesRes.json()) as SeriesStream[];
               const seriesCatMap = new Map(
                 seriesCats.map((c) => [String(c.category_id), c.category_name]),
               );
@@ -143,6 +137,22 @@ async function xtreamFetch(settings: typeof DEFAULT_SETTINGS, action: string) {
   return res;
 }
 
+async function xtreamArray<T>(
+  settings: typeof DEFAULT_SETTINGS,
+  action: string,
+): Promise<T[]> {
+  try {
+    const res = await xtreamFetch(settings, action);
+    const data: unknown = await res.json();
+    if (!Array.isArray(data)) {
+      throw new Error("invalid response");
+    }
+    return data as T[];
+  } catch (error) {
+    console.error(`[m3u:${action}]`, error);
+    return [];
+  }
+}
 
 function escapeAttr(value: string) {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");

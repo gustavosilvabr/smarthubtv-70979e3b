@@ -100,7 +100,6 @@ export function applyQualityCapToHls(
   hls.currentLevel = capped;
   hls.loadLevel = capped;
   hls.nextLevel = capped;
-  hls.abrController?.setAutoLevelCapping(capped);
 }
 
 export function applyStabilityModeToHls(
@@ -135,7 +134,6 @@ export function applyStabilityModeToHls(
     hls.currentLevel = -1;
     hls.loadLevel = -1;
     hls.nextLevel = -1;
-    hls.abrController?.setAutoLevelCapping(-1);
     return;
   }
 

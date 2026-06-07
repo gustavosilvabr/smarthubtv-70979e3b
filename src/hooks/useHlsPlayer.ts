@@ -17,9 +17,17 @@ import { getStreamPlaybackProfile } from "@/utils/streamProfile";
 function proxied(url: string) {
   if (typeof window === "undefined") return url;
   if (url.startsWith("/") || url.startsWith("blob:") || url.startsWith("data:")) return url;
-  let secureUrl = url;
-  if (secureUrl.startsWith("http://")) secureUrl = "https://" + secureUrl.slice(7);
-  return `/api/stream?u=${encodeURIComponent(secureUrl)}`;
+  return `/api/stream?u=${encodeURIComponent(url)}`;
+}
+
+function proxiedForWorker(url: string) {
+  if (typeof window === "undefined") return url;
+  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+  const proxyPath = `/api/stream?u=${encodeURIComponent(url)}`;
+  if (proxyPath.startsWith("/")) {
+    return `${window.location.origin}${proxyPath}`;
+  }
+  return proxyPath;
 }
 
 const LIVE_MAX_DRIFT_S = 25;
@@ -42,7 +50,7 @@ interface UseHlsPlayerOptions {
   lowQuality?: boolean;
 }
 
-interface PlayerLevel {
+export interface PlayerLevel {
   index: number;
   height?: number;
   width?: number;
@@ -50,7 +58,7 @@ interface PlayerLevel {
   name?: string;
 }
 
-interface PlayerDiagnostics {
+export interface PlayerDiagnostics {
   engine: "hls.js" | "mpegts.js" | "native" | "none";
   status: string;
   bufferAhead: number;
@@ -412,6 +420,8 @@ export function useHlsPlayer(
 
     const streamUrl = proxied(item.url);
     const fallbackUrl = item.fallbackUrl ? proxied(item.fallbackUrl) : undefined;
+    const streamUrlForWorker = proxiedForWorker(item.url);
+    const fallbackUrlForWorker = item.fallbackUrl ? proxiedForWorker(item.fallbackUrl) : undefined;
     const isLive = item.type === "live";
     let disposed = false;
     const getDisposed = () => disposed;
@@ -582,17 +592,17 @@ export function useHlsPlayer(
 
     const tryAlternateStream = () => {
       const tried = attemptedFormatsRef.current;
-      const preferTs = profile.preferTsFallback && Boolean(fallbackUrl);
+      const preferTs = profile.preferTsFallback && Boolean(fallbackUrlForWorker);
       const nextFormat: StreamFormat | null = preferTs
         ? tried.has("ts") && !tried.has("hls")
           ? "hls"
           : null
-        : tried.has("hls") && !tried.has("ts") && fallbackUrl
+        : tried.has("hls") && !tried.has("ts") && fallbackUrlForWorker
           ? "ts"
           : null;
 
-      if (nextFormat === "ts" && fallbackUrl) {
-        playTs(fallbackUrl);
+      if (nextFormat === "ts" && fallbackUrlForWorker) {
+        playTs(fallbackUrlForWorker);
       } else if (nextFormat === "hls") {
         playWithHls(streamUrl);
       } else {
@@ -667,7 +677,7 @@ export function useHlsPlayer(
 
         if (!Hls.isSupported()) {
           if (video.canPlayType("application/vnd.apple.mpegurl")) playNative(url);
-          else if (fallbackUrl) playTs(fallbackUrl);
+          else if (fallbackUrlForWorker) playTs(fallbackUrlForWorker);
           else showError("Este navegador não suporta HLS.");
           return;
         }
@@ -748,9 +758,9 @@ export function useHlsPlayer(
     video.onerror = tryAlternateStream;
     startDiagPoll();
 
-    if (profile.preferTsFallback && fallbackUrl) {
+    if (profile.preferTsFallback && fallbackUrlForWorker) {
       setBufferStatus("Carregando Full HD (stream direto)...");
-      playTs(fallbackUrl);
+      playTs(fallbackUrlForWorker);
     } else if (/\.m3u8(\?|$)/i.test(streamUrl) || streamUrl.includes("m3u8")) {
       playWithHls(streamUrl);
     } else if (/\.ts(\?|$)/i.test(streamUrl) || isLive) {

@@ -28,7 +28,9 @@ async function handle(request: Request, method: "GET" | "HEAD") {
   const target = url.searchParams.get("u");
   if (!target) return new Response("Missing u", { status: 400, headers: CORS_HEADERS });
   try {
-    const t = decodeURIComponent(target);
+    // URLSearchParams already decodes the query value. Decoding it again can
+    // corrupt encoded credentials or path segments in Xtream stream URLs.
+    const t = target;
     if (!/^https?:\/\//i.test(t)) return new Response("Bad url", { status: 400, headers: CORS_HEADERS });
 
     // Bypass SSL certificate validation for IPTV servers with self-signed/invalid certs
