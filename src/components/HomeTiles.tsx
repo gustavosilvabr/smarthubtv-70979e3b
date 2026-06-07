@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Film, Radio, Settings, Tv } from "lucide-react";
+import { Film, Radio, Settings, Tv, Zap } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import type { Tab } from "./Sidebar";
 import { useGsapEntrance } from "@/hooks/useGsapEntrance";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { useRef } from "react";
+import { getStabilityMode, setStabilityMode } from "@/utils/stabilityMode";
 
 export type HomeTileTarget = Tab | "settings";
 
@@ -16,11 +17,23 @@ interface Props {
 
 export function HomeTiles({ counts, onSelect }: Props) {
   const [now, setNow] = useState<Date | null>(null);
+  const [stabilityMode, setStabilityModeState] = useState(getStabilityMode());
+  const [optimizeMsg, setOptimizeMsg] = useState<string | null>(null);
+
   useEffect(() => {
     setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
+
+  const handleOptimize = () => {
+    const newState = !stabilityMode;
+    setStabilityMode(newState);
+    setStabilityModeState(newState);
+    setOptimizeMsg(newState ? "✓ Modo estabilidade ativado" : "✓ Modo estabilidade desativado");
+    setTimeout(() => setOptimizeMsg(null), 3000);
+  };
+
   const time = now ? now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "--:--";
   const date = now ? now.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }) : "";
 
@@ -73,8 +86,8 @@ export function HomeTiles({ counts, onSelect }: Props) {
         {/* Tile grid — fills remaining height */}
         <div ref={gridRef} className="mt-3 sm:mt-4 flex-1 grid gap-2 sm:gap-3 md:gap-4
           grid-cols-2 grid-rows-3
-          sm:grid-cols-3 sm:grid-rows-2
-          md:grid-cols-3 md:grid-rows-2
+          sm:grid-cols-4 sm:grid-rows-2
+          md:grid-cols-4 md:grid-rows-2
           min-h-0">
 
           {/* TV AO VIVO — ocupa 2 linhas no mobile (col 1-2, row 1) e col 1 em desktop */}
@@ -115,14 +128,32 @@ export function HomeTiles({ counts, onSelect }: Props) {
             </div>
           </button>
 
-          {/* CONFIGURAÇÕES — col-span-2 no mobile para preencher a última linha */}
+          {/* OTIMIZAR CANAIS */}
+          <button
+            onClick={handleOptimize}
+            className={`tile-item group relative overflow-hidden rounded-2xl shadow-xl transition hover:scale-[1.015] focus:outline-none ${
+              stabilityMode
+                ? "bg-gradient-to-br from-amber-400 to-orange-500"
+                : "bg-gradient-to-br from-slate-600 to-slate-700"
+            }`}
+          >
+            <div className="flex h-full flex-col items-center justify-center text-white p-3 sm:p-4">
+              <Zap className="h-8 w-8 sm:h-11 sm:w-11 md:h-12 md:w-12 drop-shadow-lg" />
+              <div className="mt-2 text-sm sm:text-lg md:text-xl font-extrabold tracking-wide">OTIMIZAR</div>
+              <div className="mt-0.5 text-[10px] uppercase tracking-widest opacity-80">
+                {stabilityMode ? "Ativo" : "Inativo"}
+              </div>
+            </div>
+          </button>
+
+          {/* CONFIGURAÇÕES */}
           <button
             onClick={() => onSelect("settings")}
             className="tile-item group relative col-span-2 sm:col-span-1 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/80 to-teal-600/80 shadow-xl transition hover:scale-[1.015] focus:outline-none"
           >
             <div className="flex h-full items-center justify-center gap-2 sm:gap-3 text-white p-3 sm:p-4">
               <Settings className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7" />
-              <div className="text-sm sm:text-base md:text-lg font-extrabold tracking-wide">CONFIGURAÇÕES</div>
+              <div className="text-sm sm:text-base md:text-lg font-extrabold tracking-wide">CONFIG</div>
             </div>
           </button>
         </div>
@@ -132,6 +163,13 @@ export function HomeTiles({ counts, onSelect }: Props) {
           <span>Smart Hub Play TV · IPTV Player Premium</span>
           <span>Powered by Smart Hub</span>
         </div>
+
+        {/* Optimization feedback message */}
+        {optimizeMsg && (
+          <div className="fixed bottom-6 left-6 bg-emerald-500/90 text-white px-4 py-3 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <p className="text-sm font-semibold">{optimizeMsg}</p>
+          </div>
+        )}
       </div>
     </div>
   );

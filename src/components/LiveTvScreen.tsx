@@ -252,9 +252,6 @@ export function LiveTvScreen({
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isCurrentlyFullscreen);
-      if (!isCurrentlyFullscreen) {
-        setShowChannelInfo(false);
-      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -278,6 +275,7 @@ export function LiveTvScreen({
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("keydown", handleKeyDown);
@@ -473,14 +471,12 @@ export function LiveTvScreen({
             )}
 
             {isFullscreen && selected && (
-              <div className="pointer-events-none absolute bottom-4 sm:bottom-6 left-4 sm:left-6">
-                <div className="bg-gradient-to-r from-black/90 via-black/80 to-black/70 px-4 sm:px-6 py-3 sm:py-4 rounded-lg backdrop-blur-sm border border-amber-400/20">
-                  <div className="text-xl sm:text-3xl font-bold text-white tracking-wide">
-                    {selected.name}
-                  </div>
-                  <div className="text-xs sm:text-sm text-amber-300/90 mt-1 font-semibold">
-                    CANAL {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)} • {selected.group}
-                  </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent px-4 sm:px-8 py-3 sm:py-6">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-wide">
+                  {selected.name}
+                </div>
+                <div className="text-sm sm:text-base text-amber-300/90 mt-2 font-semibold">
+                  CANAL {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)} • {selected.group}
                 </div>
               </div>
             )}
