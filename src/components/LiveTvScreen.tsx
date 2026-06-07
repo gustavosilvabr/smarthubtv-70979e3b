@@ -489,6 +489,7 @@ export function LiveTvScreen({
                 <button
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const currentIdx = visibleChannels.findIndex((c) => c.id === selected?.id);
                     const prevIdx = currentIdx <= 0 ? visibleChannels.length - 1 : currentIdx - 1;
                     if (prevIdx >= 0 && visibleChannels[prevIdx]) {
@@ -504,6 +505,7 @@ export function LiveTvScreen({
                 <button
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     const currentIdx = visibleChannels.findIndex((c) => c.id === selected?.id);
                     const nextIdx = (currentIdx + 1) % visibleChannels.length;
                     if (nextIdx >= 0 && visibleChannels[nextIdx]) {
