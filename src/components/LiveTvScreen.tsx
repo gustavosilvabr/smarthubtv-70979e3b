@@ -252,7 +252,11 @@ export function LiveTvScreen({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isCurrentlyFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isCurrentlyFullscreen);
+      if (!isCurrentlyFullscreen) {
+        setShowChannelInfo(false);
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -261,10 +265,10 @@ export function LiveTvScreen({
       const currentIdx = visibleChannels.findIndex((c) => c.id === selected.id);
       let nextIdx: number | null = null;
 
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         nextIdx = (currentIdx + 1) % visibleChannels.length;
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         nextIdx = currentIdx <= 0 ? visibleChannels.length - 1 : currentIdx - 1;
       }
@@ -497,21 +501,44 @@ export function LiveTvScreen({
             )}
 
             {isFullscreen && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center gap-4 sm:gap-6 p-4 sm:p-6 pb-20 sm:pb-28 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
-                  <ChevronUp className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
-                  <span className="text-xs sm:text-sm text-white/70 font-medium">Anterior</span>
-                </div>
-                <div className="h-12 w-px bg-white/20" />
-                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
-                  <ChevronDown className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
-                  <span className="text-xs sm:text-sm text-white/70 font-medium">Próximo</span>
-                </div>
-                <div className="h-12 w-px bg-white/20" />
-                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
-                  <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
-                  <span className="text-xs sm:text-sm text-white/70 font-medium">Anterior</span>
-                </div>
+              <div className="pointer-events-none absolute right-4 sm:right-6 inset-y-0 flex flex-col items-center justify-center gap-6">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const currentIdx = visibleChannels.findIndex((c) => c.id === selected?.id);
+                    const prevIdx = currentIdx <= 0 ? visibleChannels.length - 1 : currentIdx - 1;
+                    if (prevIdx >= 0 && visibleChannels[prevIdx]) {
+                      selectChannel(visibleChannels[prevIdx]);
+                      setShowChannelInfo(true);
+                      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
+                      const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
+                      setChannelInfoTimeout(timeout);
+                    }
+                  }}
+                  className="pointer-events-auto hover:scale-110 transition-transform"
+                  aria-label="Canal anterior"
+                >
+                  <ChevronUp className="h-8 w-8 sm:h-10 sm:w-10 text-amber-300 drop-shadow-lg hover:text-amber-200" />
+                </button>
+                <div className="h-12 w-0.5 bg-white/20" />
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const currentIdx = visibleChannels.findIndex((c) => c.id === selected?.id);
+                    const nextIdx = (currentIdx + 1) % visibleChannels.length;
+                    if (nextIdx >= 0 && visibleChannels[nextIdx]) {
+                      selectChannel(visibleChannels[nextIdx]);
+                      setShowChannelInfo(true);
+                      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
+                      const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
+                      setChannelInfoTimeout(timeout);
+                    }
+                  }}
+                  className="pointer-events-auto hover:scale-110 transition-transform"
+                  aria-label="Próximo canal"
+                >
+                  <ChevronDown className="h-8 w-8 sm:h-10 sm:w-10 text-amber-300 drop-shadow-lg hover:text-amber-200" />
+                </button>
               </div>
             )}
           </div>
