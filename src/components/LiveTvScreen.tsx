@@ -1,6 +1,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
   Heart,
   Loader2,
   Maximize2,
@@ -108,6 +111,9 @@ export function LiveTvScreen({
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const [pinPending, setPinPending] = useState<string | null>(null);
   const [unlockedAdult, setUnlockedAdult] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showChannelInfo, setShowChannelInfo] = useState(false);
+  const [channelInfoTimeout, setChannelInfoTimeout] = useState<NodeJS.Timeout | null>(null);
   const playerWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -243,6 +249,46 @@ export function LiveTvScreen({
       console.error("[fullscreen]", e);
     }
   }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selected || visibleChannels.length === 0) return;
+
+      const currentIdx = visibleChannels.findIndex((c) => c.id === selected.id);
+      let nextIdx: number | null = null;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        nextIdx = (currentIdx + 1) % visibleChannels.length;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        nextIdx = currentIdx <= 0 ? visibleChannels.length - 1 : currentIdx - 1;
+      }
+
+      if (nextIdx !== null && visibleChannels[nextIdx]) {
+        selectChannel(visibleChannels[nextIdx]);
+
+        if (document.fullscreenElement) {
+          setShowChannelInfo(true);
+          if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
+          const timeout = setTimeout(() => setShowChannelInfo(false), 3000);
+          setChannelInfoTimeout(timeout);
+        }
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("keydown", handleKeyDown);
+      if (channelInfoTimeout) clearTimeout(channelInfoTimeout);
+    };
+  }, [visibleChannels, selected, selectChannel, channelInfoTimeout]);
 
   const counts = useMemo(
     () => ({
@@ -429,6 +475,43 @@ export function LiveTvScreen({
             {!selected && (
               <div className="absolute inset-0 grid place-items-center text-white/40">
                 <Tv className="h-16 w-16" strokeWidth={1.2} />
+              </div>
+            )}
+
+            {isFullscreen && showChannelInfo && selected && (
+              <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-center pt-8 sm:pt-12">
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 rounded-xl bg-gradient-to-b from-black/80 via-black/60 to-transparent px-6 py-4 text-center shadow-2xl">
+                  <div className="text-lg sm:text-2xl font-bold text-amber-300">
+                    {selected.name}
+                  </div>
+                  <div className="text-sm sm:text-base text-white/80 mt-1">
+                    CANAL {(visibleChannels.findIndex((c) => c.id === selected.id) + 1 || 1)}
+                  </div>
+                  {selected.group && (
+                    <div className="text-xs sm:text-sm text-white/60 mt-2">
+                      {selected.group}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isFullscreen && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-center gap-4 sm:gap-6 p-4 sm:p-6 pb-20 sm:pb-28 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
+                  <ChevronUp className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
+                  <span className="text-xs sm:text-sm text-white/70 font-medium">Anterior</span>
+                </div>
+                <div className="h-12 w-px bg-white/20" />
+                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
+                  <ChevronDown className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
+                  <span className="text-xs sm:text-sm text-white/70 font-medium">Próximo</span>
+                </div>
+                <div className="h-12 w-px bg-white/20" />
+                <div className="flex flex-col items-center gap-2 text-center opacity-60 hover:opacity-100 transition-opacity">
+                  <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8 text-amber-300" />
+                  <span className="text-xs sm:text-sm text-white/70 font-medium">Anterior</span>
+                </div>
               </div>
             )}
           </div>
