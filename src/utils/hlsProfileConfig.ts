@@ -41,30 +41,30 @@ const HLS_PROFILES: Record<HlsProfileKey, HlsProfile> = {
   sd: {
     lowLatencyMode: false,
 
-    maxBufferLength: 20,
-    maxMaxBufferLength: 35,
-    maxBufferSize: 30 * 1000 * 1000,
-    liveBackBufferLength: 10,
+    maxBufferLength: 12,
+    maxMaxBufferLength: 24,
+    maxBufferSize: 25 * 1000 * 1000,
+    liveBackBufferLength: 8,
 
     liveSyncDurationCount: 3,
     liveMaxLatencyDurationCount: 6,
 
     maxBufferHole: 0.5,
-    highBufferWatchdogPeriod: 3,
+    highBufferWatchdogPeriod: 2,
     nudgeOffset: 0.1,
     nudgeMaxRetry: 3,
 
-    fragLoadingTimeOut: 20000,
-    fragLoadingMaxRetry: 5,
+    fragLoadingTimeOut: 15000,
+    fragLoadingMaxRetry: 4,
 
-    levelLoadingTimeOut: 20000,
-    levelLoadingMaxRetry: 5,
+    levelLoadingTimeOut: 15000,
+    levelLoadingMaxRetry: 4,
 
-    manifestLoadingTimeOut: 20000,
-    manifestLoadingMaxRetry: 5,
+    manifestLoadingTimeOut: 15000,
+    manifestLoadingMaxRetry: 4,
 
-    abrBandWidthFactor: 0.75,
-    abrBandWidthUpFactor: 0.5,
+    abrBandWidthFactor: 0.85,
+    abrBandWidthUpFactor: 0.7,
 
     capLevelToPlayerSize: true,
     enableWorker: true,
@@ -74,30 +74,30 @@ const HLS_PROFILES: Record<HlsProfileKey, HlsProfile> = {
   hd: {
     lowLatencyMode: false,
 
-    maxBufferLength: 35,
-    maxMaxBufferLength: 60,
-    maxBufferSize: 60 * 1000 * 1000,
-    liveBackBufferLength: 20,
+    maxBufferLength: 20,
+    maxMaxBufferLength: 35,
+    maxBufferSize: 40 * 1000 * 1000,
+    liveBackBufferLength: 12,
 
-    liveSyncDurationCount: 4,
-    liveMaxLatencyDurationCount: 9,
+    liveSyncDurationCount: 3,
+    liveMaxLatencyDurationCount: 7,
 
-    maxBufferHole: 0.6,
-    highBufferWatchdogPeriod: 3,
+    maxBufferHole: 0.5,
+    highBufferWatchdogPeriod: 2,
     nudgeOffset: 0.1,
-    nudgeMaxRetry: 4,
+    nudgeMaxRetry: 3,
 
-    fragLoadingTimeOut: 25000,
-    fragLoadingMaxRetry: 7,
+    fragLoadingTimeOut: 18000,
+    fragLoadingMaxRetry: 5,
 
-    levelLoadingTimeOut: 25000,
-    levelLoadingMaxRetry: 6,
+    levelLoadingTimeOut: 18000,
+    levelLoadingMaxRetry: 5,
 
-    manifestLoadingTimeOut: 25000,
-    manifestLoadingMaxRetry: 6,
+    manifestLoadingTimeOut: 18000,
+    manifestLoadingMaxRetry: 5,
 
-    abrBandWidthFactor: 0.75,
-    abrBandWidthUpFactor: 0.45,
+    abrBandWidthFactor: 0.82,
+    abrBandWidthUpFactor: 0.65,
 
     capLevelToPlayerSize: true,
     enableWorker: true,
@@ -107,30 +107,30 @@ const HLS_PROFILES: Record<HlsProfileKey, HlsProfile> = {
   fhd: {
     lowLatencyMode: false,
 
-    maxBufferLength: 50,
-    maxMaxBufferLength: 90,
-    maxBufferSize: 100 * 1000 * 1000,
-    liveBackBufferLength: 30,
+    maxBufferLength: 28,
+    maxMaxBufferLength: 45,
+    maxBufferSize: 55 * 1000 * 1000,
+    liveBackBufferLength: 15,
 
-    liveSyncDurationCount: 5,
-    liveMaxLatencyDurationCount: 12,
+    liveSyncDurationCount: 4,
+    liveMaxLatencyDurationCount: 8,
 
-    maxBufferHole: 0.8,
-    highBufferWatchdogPeriod: 3,
+    maxBufferHole: 0.6,
+    highBufferWatchdogPeriod: 2,
     nudgeOffset: 0.1,
-    nudgeMaxRetry: 5,
+    nudgeMaxRetry: 4,
 
-    fragLoadingTimeOut: 35000,
-    fragLoadingMaxRetry: 9,
+    fragLoadingTimeOut: 22000,
+    fragLoadingMaxRetry: 5,
 
-    levelLoadingTimeOut: 30000,
-    levelLoadingMaxRetry: 7,
+    levelLoadingTimeOut: 22000,
+    levelLoadingMaxRetry: 5,
 
-    manifestLoadingTimeOut: 30000,
-    manifestLoadingMaxRetry: 7,
+    manifestLoadingTimeOut: 22000,
+    manifestLoadingMaxRetry: 5,
 
-    abrBandWidthFactor: 0.7,
-    abrBandWidthUpFactor: 0.4,
+    abrBandWidthFactor: 0.8,
+    abrBandWidthUpFactor: 0.6,
 
     capLevelToPlayerSize: true,
     enableWorker: true,
@@ -146,10 +146,7 @@ export function getProfileKeyForTier(tier: LiveChannelTier): HlsProfileKey {
 
 export function selectProfileForTier(tier: LiveChannelTier): HlsProfile {
   const key = getProfileKeyForTier(tier);
-
-  return {
-    ...HLS_PROFILES[key],
-  };
+  return { ...HLS_PROFILES[key] };
 }
 
 export function createStabilityProfile(profile: HlsProfile): HlsProfile {
@@ -158,33 +155,30 @@ export function createStabilityProfile(profile: HlsProfile): HlsProfile {
 
     lowLatencyMode: false,
 
-    maxBufferLength: Math.max(profile.maxBufferLength, 50),
-    maxMaxBufferLength: Math.max(profile.maxMaxBufferLength, 90),
-    maxBufferSize: Math.max(profile.maxBufferSize, 100 * 1000 * 1000),
-    liveBackBufferLength: Math.max(profile.liveBackBufferLength, 30),
+    maxBufferLength: Math.max(profile.maxBufferLength, 30),
+    maxMaxBufferLength: Math.max(profile.maxMaxBufferLength, 50),
+    maxBufferSize: Math.max(profile.maxBufferSize, 60 * 1000 * 1000),
+    liveBackBufferLength: Math.max(profile.liveBackBufferLength, 15),
 
-    liveSyncDurationCount: Math.max(profile.liveSyncDurationCount, 5),
-    liveMaxLatencyDurationCount: Math.max(
-      profile.liveMaxLatencyDurationCount,
-      12
-    ),
+    liveSyncDurationCount: Math.max(profile.liveSyncDurationCount, 4),
+    liveMaxLatencyDurationCount: Math.max(profile.liveMaxLatencyDurationCount, 9),
 
-    maxBufferHole: Math.max(profile.maxBufferHole, 0.8),
-    highBufferWatchdogPeriod: 3,
+    maxBufferHole: Math.max(profile.maxBufferHole, 0.6),
+    highBufferWatchdogPeriod: 2,
     nudgeOffset: 0.1,
-    nudgeMaxRetry: 5,
+    nudgeMaxRetry: 4,
 
-    fragLoadingTimeOut: Math.max(profile.fragLoadingTimeOut, 35000),
-    fragLoadingMaxRetry: Math.max(profile.fragLoadingMaxRetry, 9),
+    fragLoadingTimeOut: Math.max(profile.fragLoadingTimeOut, 24000),
+    fragLoadingMaxRetry: Math.max(profile.fragLoadingMaxRetry, 6),
 
-    levelLoadingTimeOut: Math.max(profile.levelLoadingTimeOut, 30000),
-    levelLoadingMaxRetry: Math.max(profile.levelLoadingMaxRetry, 7),
+    levelLoadingTimeOut: Math.max(profile.levelLoadingTimeOut, 24000),
+    levelLoadingMaxRetry: Math.max(profile.levelLoadingMaxRetry, 6),
 
-    manifestLoadingTimeOut: Math.max(profile.manifestLoadingTimeOut, 30000),
-    manifestLoadingMaxRetry: Math.max(profile.manifestLoadingMaxRetry, 7),
+    manifestLoadingTimeOut: Math.max(profile.manifestLoadingTimeOut, 24000),
+    manifestLoadingMaxRetry: Math.max(profile.manifestLoadingMaxRetry, 6),
 
-    abrBandWidthFactor: Math.min(profile.abrBandWidthFactor, 0.7),
-    abrBandWidthUpFactor: Math.min(profile.abrBandWidthUpFactor, 0.4),
+    abrBandWidthFactor: Math.min(profile.abrBandWidthFactor, 0.78),
+    abrBandWidthUpFactor: Math.min(profile.abrBandWidthUpFactor, 0.58),
 
     capLevelToPlayerSize: true,
     enableWorker: true,
