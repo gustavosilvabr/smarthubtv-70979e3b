@@ -54,16 +54,16 @@ export function LoginScreen({ onSubmit, initial }: Props) {
   };
 
   return (
-    <div ref={containerRef} className="relative h-screen w-full overflow-hidden bg-background text-foreground">
+    <div ref={containerRef} className="relative w-full min-h-dvh overflow-auto bg-background text-foreground">
       {/* Purple ambience */}
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="ambient-bubble absolute -top-32 left-1/2 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/25 blur-[130px]" />
         <div className="ambient-bubble absolute bottom-[-160px] left-[-100px] h-[380px] w-[380px] rounded-full bg-primary/20 blur-[130px]" />
         <div className="ambient-bubble absolute bottom-[-160px] right-[-100px] h-[380px] w-[380px] rounded-full bg-primary/15 blur-[130px]" />
       </div>
 
-      {/* Centered content — fills height, no scroll */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 py-4">
+      {/* Centered content — fills height, scrollable on keyboard */}
+      <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-4 py-4">
 
         {/* Logo — scales down on small screens */}
         <div ref={logoRef} className="flex flex-col items-center">

@@ -65,7 +65,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual" },
       { title: "Smart hub tv online" },
       { name: "description", content: "canais online e aqui na smart hub play tv" },
       { name: "google-adsense-account", content: "ca-pub-5176993182609305" },
