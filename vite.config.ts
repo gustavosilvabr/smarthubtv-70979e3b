@@ -11,11 +11,6 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    preset: "vercel",
-    output: {
-      dir: ".vercel/output",
-      publicDir: ".vercel/output/static",
-      serverDir: ".vercel/output/functions/__server.func"
-    }
+    preset: "netlify",
   },
 });
