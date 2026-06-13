@@ -55,11 +55,11 @@ import { VideoPlayer } from './VideoPlayer-ProductionReady';
 // ou renomear para sobrescrever o antigo
 ```
 
-### Passo 3: Deploy para Vercel
+### Passo 3: Deploy para Netlify
 ```bash
 git add .
 git commit -m "Anti-freezing: Production-ready HLS with zero travamento"
-git push  # Vercel fará deploy automático
+git push  # Netlify fará deploy automático
 ```
 
 ### Passo 4: Testar
@@ -201,7 +201,7 @@ Memory usage:           150-200MB
 - [ ] Atualizar imports
 - [ ] Testar localmente por 30min
 - [ ] Commit no git
-- [ ] Push para Vercel
+- [ ] Push para Netlify
 - [ ] Verificar em produção
 - [ ] Notificar cliente que foi resolvido
 - [ ] Monitorar por 24h (zero travamentos confirmados)

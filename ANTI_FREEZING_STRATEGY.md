@@ -213,7 +213,7 @@ const SEGMENT_TIMEOUT_MS = 15000; // ← aumentar para 20000
 - [ ] Adicionar indicadores visuais (buffer bar, stall indicator)
 - [ ] Testar por 30+ minutos
 - [ ] Zero travamentos confirmar
-- [ ] Deploy para Vercel
+- [ ] Deploy para Netlify
 - [ ] Teste em produção com cliente real
 
 ---
